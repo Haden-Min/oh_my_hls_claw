@@ -1,0 +1,13 @@
+checkpoint:
+  title: "체크포인트: {name}"
+  approve: "[a]승인 / [r]거부 / [e]수정"
+  reject_reason: "거부 사유:"
+status:
+  step_complete: "스텝 {n} 완료: {module}"
+  project_done: "프로젝트 완료!"
+cost:
+  warning: "현재 누적 비용: ${amount:.2f}"
+  limit: "API 비용이 ${limit}를 초과했습니다! 중단합니다."
+error:
+  sim_timeout: "시뮬레이션이 {seconds}초 후 타임아웃되었습니다."
+  api_fail: "API 호출 실패: {reason}"

@@ -1,0 +1,30 @@
+system:
+  language: en
+  max_parallel_agents: 2
+  harness_max_iterations: 5
+  checkpoint_on_each_step: false
+  checkpoint_on_spec: true
+  checkpoint_on_onboard: true
+
+openai:
+  use_oauth_proxy: true
+  oauth_proxy_url: "http://127.0.0.1:10531/v1"
+  rate_limit:
+    max_retries: 20
+    base_wait_seconds: 8
+    max_wait_seconds: 600
+
+simulator:
+  type: icarus
+  timeout_seconds: 30
+  vivado_path: null
+
+logging:
+  level: INFO
+  log_to_file: true
+  log_dir: workspace/logs
+
+cost_tracking:
+  enabled: true
+  warn_threshold_usd: 5.0
+  hard_limit_usd: 20.0

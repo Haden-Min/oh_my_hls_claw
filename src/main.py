@@ -1,0 +1,102 @@
+from __future__ import annotations
+
+import argparse
+import asyncio
+from pathlib import Path
+
+from .utils.console import Console, Panel
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="oh-my-hls-claw",
+        description="Oh_My_HLS_Claw - AI-powered Digital System Design Agent",
+    )
+    subparsers = parser.add_subparsers(dest="command")
+
+    subparsers.add_parser("init", help="Initialize language, API access, and simulator settings")
+
+    new_parser = subparsers.add_parser("new", help="Start a new design project")
+    new_parser.add_argument("--desc", type=str, help="Design description in natural language")
+    new_parser.add_argument("--ref", type=str, help="Path to reference software code")
+    new_parser.add_argument("--board", type=str, help="Target FPGA board")
+    new_parser.add_argument("--project", type=str, help="Override project name")
+
+    resume_parser = subparsers.add_parser("resume", help="Resume an existing project")
+    resume_parser.add_argument("--project", required=True)
+
+    status_parser = subparsers.add_parser("status", help="Show project status")
+    status_parser.add_argument("--project", required=True)
+
+    cost_parser = subparsers.add_parser("cost", help="Show project cost breakdown")
+    cost_parser.add_argument("--project", required=True)
+    return parser
+
+
+async def start_new_project(args: argparse.Namespace) -> None:
+    from .orchestrator import Orchestrator
+
+    root = Path(__file__).resolve().parent.parent
+    orchestrator = Orchestrator(root)
+    if args.ref:
+        ref_text = Path(args.ref).read_text(encoding="utf-8")
+        user_input = f"Reference software:\n{ref_text}"
+    elif args.desc:
+        user_input = args.desc
+    else:
+        user_input = Console().input("Describe the digital system to design: ").strip()
+    result = await orchestrator.run_project(user_input, project_name=args.project, board=args.board)
+    orchestrator.save_costs(result["project_name"])
+    Console().print(Panel(f"Project completed: {result['project_name']}", title="Done"))
+
+
+async def resume_project(args: argparse.Namespace) -> None:
+    from .orchestrator import Orchestrator
+
+    root = Path(__file__).resolve().parent.parent
+    orchestrator = Orchestrator(root)
+    state = orchestrator.resume_project(args.project)
+    Console().print(Panel(str(state), title=f"Resume: {args.project}"))
+
+
+def show_status(args: argparse.Namespace) -> None:
+    from .orchestrator import Orchestrator
+
+    root = Path(__file__).resolve().parent.parent
+    orchestrator = Orchestrator(root)
+    state = orchestrator.status(args.project)
+    Console().print(Panel(str(state), title=f"Status: {args.project}"))
+
+
+def show_cost(args: argparse.Namespace) -> None:
+    from .orchestrator import Orchestrator
+
+    root = Path(__file__).resolve().parent.parent
+    orchestrator = Orchestrator(root)
+    cost = orchestrator.cost(args.project)
+    Console().print(Panel(str(cost), title=f"Cost: {args.project}"))
+
+
+def main() -> None:
+    parser = build_parser()
+    args = parser.parse_args()
+    root = Path(__file__).resolve().parent.parent
+
+    if args.command == "init":
+        from .orchestrator import initialize_system
+
+        asyncio.run(initialize_system(root))
+    elif args.command == "new":
+        asyncio.run(start_new_project(args))
+    elif args.command == "resume":
+        asyncio.run(resume_project(args))
+    elif args.command == "status":
+        show_status(args)
+    elif args.command == "cost":
+        show_cost(args)
+    else:
+        parser.print_help()
+
+
+if __name__ == "__main__":
+    main()

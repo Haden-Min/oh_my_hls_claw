@@ -1,0 +1,31 @@
+agents:
+  planner:
+    provider: openai
+    model: gpt-5.4
+    max_tokens: 8192
+    temperature: 0.3
+  manager:
+    provider: openai
+    model: gpt-5.4
+    max_tokens: 8192
+    temperature: 0.2
+  rtl_designer:
+    provider: openai
+    model: gpt-5.3-codex
+    max_tokens: 8192
+    temperature: 0.1
+  verifier:
+    provider: openai
+    model: gpt-5.3-codex
+    max_tokens: 8192
+    temperature: 0.1
+  guide_writer:
+    provider: openai
+    model: gpt-5.4-mini
+    max_tokens: 8192
+    temperature: 0.4
+  onboarder:
+    provider: openai
+    model: gpt-5.3-codex
+    max_tokens: 8192
+    temperature: 0.1

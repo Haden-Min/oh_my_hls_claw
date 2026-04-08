@@ -1,0 +1,13 @@
+checkpoint:
+  title: "Checkpoint: {name}"
+  approve: "[a]pprove / [r]eject / [e]dit"
+  reject_reason: "Rejection reason:"
+status:
+  step_complete: "Step {n} completed: {module}"
+  project_done: "Project completed!"
+cost:
+  warning: "Current accumulated cost: ${amount:.2f}"
+  limit: "API cost exceeded ${limit}! Stopping."
+error:
+  sim_timeout: "Simulation timed out after {seconds}s"
+  api_fail: "API call failed: {reason}"

@@ -1,0 +1,13 @@
+checkpoint:
+  title: "チェックポイント: {name}"
+  approve: "[a]承認 / [r]拒否 / [e]編集"
+  reject_reason: "拒否理由:"
+status:
+  step_complete: "ステップ {n} 完了: {module}"
+  project_done: "プロジェクトが完了しました。"
+cost:
+  warning: "現在の累積コスト: ${amount:.2f}"
+  limit: "API コストが ${limit} を超えました。停止します。"
+error:
+  sim_timeout: "{seconds}秒後にシミュレーションがタイムアウトしました"
+  api_fail: "API 呼び出しに失敗しました: {reason}"

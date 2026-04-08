@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.pyc
+workspace/*/sim/
+workspace/*/logs/
+*.vvp
+*.vcd
+.xsim/
+xsim.dir/
+CODEX.md
