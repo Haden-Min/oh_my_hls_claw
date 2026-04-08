@@ -57,6 +57,19 @@ class AgentTests(unittest.TestCase):
         self.assertIn("Define interface", step["description"])
         self.assertEqual(step["verification"], ["ports", "ops", "tb"])
 
+    def test_manager_normalizes_scalar_verification_without_splitting_characters(self):
+        spec = {
+            "architecture_name": "alu8",
+            "modules": [{"name": "alu8"}],
+            "design_steps": [
+                {"step": 1, "module": "alu8", "verification": "Provide test vectors", "deliverables": "RTL file"},
+            ],
+        }
+        normalized = ManagerAgent.normalize_execution_plan(spec)
+        step = normalized["design_steps"][0]
+        self.assertEqual(step["verification"], ["Provide test vectors"])
+        self.assertEqual(step["deliverables"], ["RTL file"])
+
 
 if __name__ == "__main__":
     unittest.main()

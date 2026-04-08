@@ -30,6 +30,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     cost_parser = subparsers.add_parser("cost", help="Show project cost breakdown")
     cost_parser.add_argument("--project", required=True)
+
+    clean_parser = subparsers.add_parser("clean", help="Remove generated project outputs")
+    clean_scope = clean_parser.add_mutually_exclusive_group(required=True)
+    clean_scope.add_argument("--project", type=str, help="Remove outputs for one project")
+    clean_scope.add_argument("--all", action="store_true", help="Remove all generated project outputs")
     return parser
 
 
@@ -78,6 +83,20 @@ def show_cost(args: argparse.Namespace) -> None:
     Console().print(Panel(str(cost), title=f"Cost: {args.project}"))
 
 
+def clean_outputs(args: argparse.Namespace) -> None:
+    from .orchestrator import Orchestrator
+
+    root = Path(__file__).resolve().parent.parent
+    console = ProgressConsole(Console())
+    orchestrator = Orchestrator(root)
+    removed = orchestrator.clean(project_name=args.project, all_projects=args.all)
+    if removed:
+        console.print(Panel("\n".join(removed), title="Removed"))
+    else:
+        target = args.project or "all generated project outputs"
+        console.print(Panel(f"Nothing to remove for {target}.", title="Clean"))
+
+
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
@@ -95,6 +114,8 @@ def main() -> None:
         show_status(args)
     elif args.command == "cost":
         show_cost(args)
+    elif args.command == "clean":
+        clean_outputs(args)
     else:
         parser.print_help()
 

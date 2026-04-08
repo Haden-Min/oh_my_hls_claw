@@ -55,12 +55,12 @@ class ManagerAgent(BaseAgent):
                 }
             bucket = grouped[module]
             description = item.get("description") or item.get("step") or item.get("step_id") or f"Implement and verify {module}"
-            bucket["description_parts"].append(description)
-            for dependency in item.get("dependencies", item.get("depends_on", [])):
+            bucket["description_parts"].append(str(description))
+            for dependency in ManagerAgent._coerce_list(item.get("dependencies", item.get("depends_on", []))):
                 if dependency != module:
                     bucket["dependencies"].add(dependency)
-            bucket["verification"].extend(item.get("verification", item.get("verification_scope", [])))
-            bucket["deliverables"].extend(item.get("deliverables", []))
+            bucket["verification"].extend(ManagerAgent._coerce_list(item.get("verification", item.get("verification_scope", []))))
+            bucket["deliverables"].extend(ManagerAgent._coerce_list(item.get("deliverables", [])))
 
         design_steps = []
         for index, module in enumerate(module_order, start=1):
@@ -96,3 +96,11 @@ class ManagerAgent(BaseAgent):
     @staticmethod
     def _slugify(text: str) -> str:
         return re.sub(r"[^a-zA-Z0-9]+", "_", text).strip("_").lower()
+
+    @staticmethod
+    def _coerce_list(value: Any) -> list[Any]:
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return value
+        return [value]

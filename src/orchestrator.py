@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 import re
+import shutil
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -339,6 +340,14 @@ class Orchestrator:
         project_root = self.file_manager.project_root(project_name)
         self.file_manager.write_json(project_root / "costs.json", self.context.cost_tracker.summary())
 
+    def clean(self, project_name: str | None = None, all_projects: bool = False) -> list[str]:
+        removed: list[str] = []
+        for target in self._clean_targets(project_name=project_name, all_projects=all_projects):
+            if target.exists():
+                shutil.rmtree(target)
+                removed.append(str(target))
+        return removed
+
     def _find_module_spec(self, final_spec: dict[str, Any], module_name: str) -> dict[str, Any]:
         for module in final_spec.get("modules", []):
             if module.get("name") == module_name:
@@ -358,6 +367,53 @@ class Orchestrator:
             self.file_manager.write_text(project_root / "onboard" / "build.tcl", build_script)
         if firmware:
             self.file_manager.write_text(project_root / "onboard" / "firmware.txt", firmware)
+
+    def _clean_targets(self, project_name: str | None = None, all_projects: bool = False) -> list[Path]:
+        targets: list[Path] = []
+        if all_projects:
+            workspace_root = self.root / "workspace"
+            if workspace_root.exists():
+                targets.extend(path for path in workspace_root.iterdir() if path.is_dir())
+            targets.extend(self._legacy_project_roots())
+            return self._unique_paths(targets)
+
+        if project_name:
+            targets.append(self.file_manager.project_root(project_name))
+            legacy_root = self.root / project_name
+            if self._looks_like_project_root(legacy_root):
+                targets.append(legacy_root)
+        return self._unique_paths(targets)
+
+    def _legacy_project_roots(self) -> list[Path]:
+        workspace_root = self.root / "workspace"
+        legacy_roots: list[Path] = []
+        for child in self.root.iterdir():
+            if not child.is_dir():
+                continue
+            if child.name.startswith("."):
+                continue
+            if child == workspace_root:
+                continue
+            if self._looks_like_project_root(child):
+                legacy_roots.append(child)
+        return legacy_roots
+
+    @staticmethod
+    def _looks_like_project_root(path: Path) -> bool:
+        markers = ("project_state.json", "spec", "rtl", "tb", "sim", "docs")
+        return path.exists() and path.is_dir() and any((path / marker).exists() for marker in markers)
+
+    @staticmethod
+    def _unique_paths(paths: list[Path]) -> list[Path]:
+        unique: list[Path] = []
+        seen: set[Path] = set()
+        for path in paths:
+            resolved = path.resolve()
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            unique.append(path)
+        return unique
 
     @staticmethod
     def _slugify(text: str) -> str:

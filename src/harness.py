@@ -29,14 +29,14 @@ class HarnessLoop:
         response_a = initial_message
         for iteration in range(self.max_iterations):
             if self.progress_callback:
-                self.progress_callback(f"Harness iteration {iteration + 1}/{self.max_iterations}: {self.agent_a.name}")
+                self.progress_callback(self._format_progress(iteration + 1, self.agent_a.name, "draft" if iteration == 0 else "revision"))
             response_a = await self.agent_a.send(current_message)
             self.logger.info("[Harness] %s iteration %s", self.agent_a.name, iteration + 1)
             if self.convergence_checker(response_a, iteration):
                 self.logger.info("[Harness] converged at iteration %s", iteration + 1)
                 return response_a
             if self.progress_callback:
-                self.progress_callback(f"Harness iteration {iteration + 1}/{self.max_iterations}: {self.agent_b.name}")
+                self.progress_callback(self._format_progress(iteration + 1, self.agent_b.name, "review"))
             response_b = await self.agent_b.send(response_a)
             self.logger.info("[Harness] %s feedback iteration %s", self.agent_b.name, iteration + 1)
             current_message = response_b
@@ -50,7 +50,7 @@ class HarnessLoop:
         response_a = initial_response_a
         for iteration in range(self.max_iterations):
             if self.progress_callback:
-                self.progress_callback(f"Harness iteration {iteration + 1}/{self.max_iterations}: {self.agent_b.name}")
+                self.progress_callback(self._format_progress(iteration + 1, self.agent_b.name, "review"))
             response_b = await self.agent_b.send(response_a)
             self.logger.info("[Harness] %s feedback iteration %s", self.agent_b.name, iteration + 1)
             if self.convergence_checker(response_b, iteration):
@@ -61,7 +61,7 @@ class HarnessLoop:
                 break
 
             if self.progress_callback:
-                self.progress_callback(f"Harness iteration {iteration + 2}/{self.max_iterations}: {self.agent_a.name}")
+                self.progress_callback(self._format_progress(iteration + 2, self.agent_a.name, "revision"))
             response_a = await self.agent_a.send(response_b)
             self.logger.info("[Harness] %s iteration %s", self.agent_a.name, iteration + 2)
             if self.convergence_checker(response_a, iteration + 1):
@@ -77,3 +77,6 @@ class HarnessLoop:
         if isinstance(score, (int, float)):
             return score >= 100
         return bool(message.metadata.get("approved", False))
+
+    def _format_progress(self, iteration: int, agent_name: str, phase: str) -> str:
+        return f"Harness iteration {iteration}/{self.max_iterations}: {agent_name} {phase}"
