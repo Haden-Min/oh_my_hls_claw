@@ -233,6 +233,7 @@ class Orchestrator:
             verifier=verifier,
             initial_rtl_result=rtl_result,
         )
+        testbench = verify_result.artifacts.get("testbench", "")
         self.context.console.status(f"Writing documentation for {module_name}")
         with self.context.console.spinner(f"Calling guide_writer for {module_name}"):
             doc = await guide_writer.send(

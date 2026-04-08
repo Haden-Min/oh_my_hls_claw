@@ -199,6 +199,69 @@ class PathTests(unittest.TestCase):
         self.assertIn("syntax error near &lt;=", repair_message.artifacts["sim_log"])
         self.assertEqual(repair_message.artifacts["sim_status"], "COMPILE_ERROR")
 
+    def test_run_single_step_uses_repaired_testbench_for_documentation(self):
+        class DummyConsole:
+            def status(self, _message):
+                pass
+
+            class _Spinner:
+                def __enter__(self):
+                    return None
+
+                def __exit__(self, exc_type, exc, tb):
+                    return False
+
+            def spinner(self, _message):
+                return self._Spinner()
+
+            def format_duration(self, seconds):
+                return f"{seconds:.1f}s"
+
+        class FakeGuideWriter:
+            def __init__(self):
+                self.messages = []
+
+            async def send(self, message):
+                self.messages.append(message)
+                return AgentMessage(role="guide_writer", content="doc", artifacts={"document": "doc"})
+
+        class FakeRTLDesigner:
+            async def send(self, _message):
+                return AgentMessage(role="rtl_designer", content="draft", artifacts={"verilog": "module demo; endmodule"})
+
+        orchestrator = Orchestrator.__new__(Orchestrator)
+        orchestrator.context = types.SimpleNamespace(console=DummyConsole())
+        orchestrator.file_manager = FileManager(self.temp_root)
+
+        async def fake_repair_loop(**_kwargs):
+            rtl_path = self.temp_root / "workspace" / "demo_project" / "rtl" / "demo.v"
+            tb_path = self.temp_root / "workspace" / "demo_project" / "tb" / "tb_demo.v"
+            return (
+                "module demo; endmodule",
+                AgentMessage(role="verifier", content="review", artifacts={"testbench": "module tb_demo; endmodule"}),
+                {"status": "PASS", "log": "FINAL PASS", "pass": True},
+                rtl_path,
+                tb_path,
+            )
+
+        orchestrator._run_step_with_repair_loop = fake_repair_loop
+
+        guide_writer = FakeGuideWriter()
+        result = asyncio.run(
+            orchestrator.run_single_step(
+                project_state={"steps": []},
+                step={"step": 1, "step_id": "step_01_demo", "module": "demo", "status": "pending"},
+                rtl_designer=FakeRTLDesigner(),
+                verifier=None,
+                guide_writer=guide_writer,
+                project_root=self.temp_root / "workspace" / "demo_project",
+                final_spec={"modules": [{"name": "demo"}]},
+            )
+        )
+
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(guide_writer.messages[0].artifacts["tb"], "module tb_demo; endmodule")
+
 
 if __name__ == "__main__":
     unittest.main()
