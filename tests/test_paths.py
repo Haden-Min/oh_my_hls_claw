@@ -58,6 +58,27 @@ class PathTests(unittest.TestCase):
         self.assertFalse(workspace_project.exists())
         self.assertFalse(legacy_project.exists())
 
+    def test_clean_all_does_not_remove_protected_source_directories(self):
+        file_manager = FileManager(self.temp_root)
+        workspace_project = file_manager.ensure_project("alu8_basic")
+        file_manager.write_json(workspace_project / "project_state.json", {"project_name": "alu8_basic"})
+
+        protected_src = self.temp_root / "src"
+        (protected_src / "sim").mkdir(parents=True, exist_ok=True)
+        (protected_src / "main.py").write_text("print('safe')\n", encoding="utf-8")
+
+        orchestrator = Orchestrator.__new__(Orchestrator)
+        orchestrator.root = self.temp_root
+        orchestrator.file_manager = file_manager
+
+        removed = orchestrator.clean(all_projects=True)
+
+        self.assertIn(str(workspace_project), removed)
+        self.assertFalse(workspace_project.exists())
+        self.assertTrue(protected_src.exists())
+        self.assertTrue((protected_src / "main.py").exists())
+        self.assertNotIn(str(protected_src), removed)
+
 
 if __name__ == "__main__":
     unittest.main()

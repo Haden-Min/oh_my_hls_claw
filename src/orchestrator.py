@@ -40,6 +40,19 @@ class RuntimeContext:
 
 
 class Orchestrator:
+    PROTECTED_ROOT_DIRS = {
+        "config",
+        "docs",
+        "examples",
+        "locale",
+        "src",
+        "tests",
+        "workspace",
+        "__pycache__",
+        ".git",
+        ".venv",
+    }
+
     def __init__(self, root: str | Path) -> None:
         self.root = Path(root)
         self.file_manager = FileManager(self.root)
@@ -392,6 +405,8 @@ class Orchestrator:
                 continue
             if child.name.startswith("."):
                 continue
+            if child.name in self.PROTECTED_ROOT_DIRS:
+                continue
             if child == workspace_root:
                 continue
             if self._looks_like_project_root(child):
@@ -400,8 +415,12 @@ class Orchestrator:
 
     @staticmethod
     def _looks_like_project_root(path: Path) -> bool:
-        markers = ("project_state.json", "spec", "rtl", "tb", "sim", "docs")
-        return path.exists() and path.is_dir() and any((path / marker).exists() for marker in markers)
+        if not path.exists() or not path.is_dir():
+            return False
+        if (path / "project_state.json").exists():
+            return True
+        required_dirs = ("spec", "rtl", "tb")
+        return all((path / name).exists() for name in required_dirs)
 
     @staticmethod
     def _unique_paths(paths: list[Path]) -> list[Path]:
