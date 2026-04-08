@@ -255,14 +255,18 @@ class Orchestrator:
 
     def _initialize_project_state(self, project_name: str, final_spec: dict[str, Any], board: str | None) -> dict[str, Any]:
         steps = []
-        for item in final_spec.get("design_steps", []):
+        for index, item in enumerate(final_spec.get("design_steps", []), start=1):
+            step_number = item.get("step", index)
             steps.append(
                 {
-                    "step": item["step"],
+                    "step": step_number,
+                    "step_id": item.get("step_id", f"step_{step_number}"),
                     "module": item["module"],
                     "description": item.get("description", ""),
                     "dependencies": item.get("dependencies", []),
                     "priority": item.get("priority", "medium"),
+                    "verification": item.get("verification", []),
+                    "deliverables": item.get("deliverables", []),
                     "status": "pending",
                     "rtl_file": None,
                     "tb_file": None,
