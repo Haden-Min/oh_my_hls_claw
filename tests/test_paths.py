@@ -10,6 +10,8 @@ if "yaml" not in sys.modules:
     sys.modules["yaml"] = types.SimpleNamespace(safe_load=lambda *_args, **_kwargs: {}, safe_dump=lambda *_args, **_kwargs: None)
 
 from src.agents.base import AgentMessage
+from src.llm.openai_client import OpenAIClient
+from src.utils.checkpoint import CheckpointManager
 from src.utils.file_manager import FileManager
 from src.orchestrator import Orchestrator
 
@@ -261,6 +263,76 @@ class PathTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "completed")
         self.assertEqual(guide_writer.messages[0].artifacts["tb"], "module tb_demo; endmodule")
+
+    def test_checkpoint_manager_can_auto_approve(self):
+        class DummyLocale:
+            def t(self, key, **kwargs):
+                return key.format(**kwargs) if kwargs else key
+
+        class DummyConsole:
+            def __init__(self):
+                self.messages = []
+
+            def success(self, message):
+                self.messages.append(message)
+
+            def print(self, *_args, **_kwargs):
+                raise AssertionError("print should not be called when auto_approve is enabled")
+
+            def input(self, *_args, **_kwargs):
+                raise AssertionError("input should not be called when auto_approve is enabled")
+
+        manager = CheckpointManager(locale=DummyLocale(), console=DummyConsole(), auto_approve=True)
+        approved = asyncio.run(manager.prompt("Spec Review", {"x": 1}))
+        self.assertTrue(approved)
+
+    def test_openai_client_omits_temperature_for_gpt5_models(self):
+        captured = {}
+
+        class FakeResponse:
+            status_code = 200
+            headers = {}
+
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return {"choices": [{"message": {"content": "ok"}}]}
+
+        class FakeHttpClient:
+            async def post(self, _url, headers=None, json=None):
+                captured["headers"] = headers
+                captured["json"] = json
+                return FakeResponse()
+
+        client = OpenAIClient(api_key="x", model="gpt-5.4", use_oauth_proxy=False)
+        client.client = FakeHttpClient()
+        result = asyncio.run(client.chat("sys", [{"role": "user", "content": "hi"}], temperature=0.7))
+        self.assertEqual(result, "ok")
+        self.assertNotIn("temperature", captured["json"])
+
+    def test_openai_client_keeps_temperature_for_non_reasoning_models(self):
+        captured = {}
+
+        class FakeResponse:
+            status_code = 200
+            headers = {}
+
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return {"choices": [{"message": {"content": "ok"}}]}
+
+        class FakeHttpClient:
+            async def post(self, _url, headers=None, json=None):
+                captured["json"] = json
+                return FakeResponse()
+
+        client = OpenAIClient(api_key="x", model="gpt-4o-mini", use_oauth_proxy=False)
+        client.client = FakeHttpClient()
+        asyncio.run(client.chat("sys", [{"role": "user", "content": "hi"}], temperature=0.7))
+        self.assertEqual(captured["json"]["temperature"], 0.7)
 
 
 if __name__ == "__main__":

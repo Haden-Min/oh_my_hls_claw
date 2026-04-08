@@ -21,6 +21,7 @@ def build_parser() -> argparse.ArgumentParser:
     new_parser.add_argument("--ref", type=str, help="Path to reference software code")
     new_parser.add_argument("--board", type=str, help="Target FPGA board")
     new_parser.add_argument("--project", type=str, help="Override project name")
+    new_parser.add_argument("--approve-all", action="store_true", help="Auto-approve checkpoints for this run")
 
     resume_parser = subparsers.add_parser("resume", help="Resume an existing project")
     resume_parser.add_argument("--project", required=True)
@@ -44,6 +45,7 @@ async def start_new_project(args: argparse.Namespace) -> None:
     root = Path(__file__).resolve().parent.parent
     progress_console = ProgressConsole(Console())
     orchestrator = Orchestrator(root)
+    orchestrator.context.checkpoint_manager.auto_approve = bool(args.approve_all)
     if args.ref:
         ref_text = Path(args.ref).read_text(encoding="utf-8")
         user_input = f"Reference software:\n{ref_text}"

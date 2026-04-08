@@ -31,6 +31,8 @@ class ProgressConsole:
         self._last_kind = "plain"
 
     def print(self, *args, **kwargs):
+        if self._last_kind == "spinner":
+            print()
         self.console.print(*args, **kwargs)
         self._last_kind = "plain"
 
@@ -62,6 +64,9 @@ class ProgressConsole:
             self._last_kind = "spinner"
 
     def status(self, message: str) -> None:
+        if self._last_kind == "spinner":
+            print()
+            self._last_kind = "plain"
         if self._is_major_status(message):
             self.section(message)
         elif message.lower().startswith("step ") and " complete " in message.lower():
@@ -70,6 +75,9 @@ class ProgressConsole:
             self.detail(message)
 
     def section(self, message: str) -> None:
+        if self._last_kind == "spinner":
+            print()
+            self._last_kind = "plain"
         if self._last_kind != "section":
             self.console.print()
         if Text is not None:
@@ -80,6 +88,9 @@ class ProgressConsole:
         self._last_kind = "section"
 
     def detail(self, message: str) -> None:
+        if self._last_kind == "spinner":
+            print()
+            self._last_kind = "plain"
         if Text is not None:
             prefix = Text("  >", style="bright_blue")
             body = Text(f" {message}", style="white")
@@ -89,6 +100,9 @@ class ProgressConsole:
         self._last_kind = "detail"
 
     def success(self, message: str) -> None:
+        if self._last_kind == "spinner":
+            print()
+            self._last_kind = "plain"
         if Text is not None:
             prefix = Text("  OK", style="bold green")
             body = Text(f" {message}", style="green")

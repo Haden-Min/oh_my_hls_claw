@@ -49,8 +49,9 @@ class OpenAIClient(BaseLLMClient):
             "model": self.model,
             "messages": formatted,
             "max_tokens": max_tokens,
-            "temperature": temperature,
         }
+        if self._supports_temperature():
+            payload["temperature"] = temperature
         for attempt in range(self.max_retries):
             try:
                 response = await self.client.post(self.base_url, headers=headers, json=payload)
@@ -102,3 +103,6 @@ class OpenAIClient(BaseLLMClient):
         if self.use_oauth_proxy:
             return 0.0
         return (input_tokens * 2.5 + output_tokens * 10.0) / 1_000_000
+
+    def _supports_temperature(self) -> bool:
+        return not self.model.startswith("gpt-5")
