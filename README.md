@@ -184,6 +184,9 @@ python -m src.main clean --project my_project
 python -m src.main clean --all
 ```
 
+Full CLI command reference:
+- [docs/cli-reference.md](docs/cli-reference.md)
+
 ## Project Layout
 
 The repo is organized around a few core ideas: config, agent logic, LLM backends, simulator wrappers, and generated workspace artifacts.
