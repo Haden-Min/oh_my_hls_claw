@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import json
 import re
 from abc import ABC, abstractmethod
@@ -50,3 +51,7 @@ class BaseAgent(ABC):
             return json.loads(text)
         except json.JSONDecodeError:
             return {}
+
+    @staticmethod
+    def decode_html_entities(text: str) -> str:
+        return html.unescape(text) if text else text

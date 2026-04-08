@@ -14,6 +14,6 @@ class RTLDesignerAgent(BaseAgent):
         )
 
     def _parse_output(self, raw_response: str) -> AgentMessage:
-        verilog = self.extract_tag(raw_response, "VERILOG")
+        verilog = self.decode_html_entities(self.extract_tag(raw_response, "VERILOG"))
         notes = self.extract_tag(raw_response, "NOTES")
         return AgentMessage(role=self.name, content=notes or raw_response, artifacts={"verilog": verilog}, metadata={})

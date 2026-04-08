@@ -54,7 +54,7 @@ class ManagerAgent(BaseAgent):
                     "deliverables": [],
                 }
             bucket = grouped[module]
-            description = item.get("description") or item.get("step") or item.get("step_id") or f"Implement and verify {module}"
+            description = ManagerAgent._choose_description(item, module)
             bucket["description_parts"].append(str(description))
             for dependency in ManagerAgent._coerce_list(item.get("dependencies", item.get("depends_on", []))):
                 if dependency != module:
@@ -104,3 +104,16 @@ class ManagerAgent(BaseAgent):
         if isinstance(value, list):
             return value
         return [value]
+
+    @staticmethod
+    def _choose_description(item: dict[str, Any], module: str) -> str:
+        description = item.get("description")
+        if isinstance(description, str) and description.strip():
+            return description.strip()
+        step_value = item.get("step")
+        if isinstance(step_value, str) and step_value.strip() and not step_value.strip().isdigit():
+            return step_value.strip()
+        step_id = item.get("step_id")
+        if isinstance(step_id, str) and step_id.strip():
+            return step_id.strip()
+        return f"Implement and verify {module}"

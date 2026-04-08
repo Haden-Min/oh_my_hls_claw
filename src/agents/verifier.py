@@ -14,7 +14,7 @@ class VerifierAgent(BaseAgent):
         )
 
     def _parse_output(self, raw_response: str) -> AgentMessage:
-        testbench = self.extract_tag(raw_response, "TESTBENCH")
+        testbench = self.decode_html_entities(self.extract_tag(raw_response, "TESTBENCH"))
         code_review = self.extract_tag(raw_response, "CODE_REVIEW")
         verdict = self.extract_tag(raw_response, "VERDICT") or "REVIEW"
         fix = self.extract_tag(raw_response, "FIX_SUGGESTION")

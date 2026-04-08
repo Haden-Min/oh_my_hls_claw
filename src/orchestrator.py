@@ -138,6 +138,19 @@ class Orchestrator:
             for result in results:
                 self._apply_step_result(project_state, result)
             self.file_manager.write_json(project_root / "project_state.json", project_state)
+            if any(step["status"] == "failed" for step in project_state["steps"]):
+                break
+
+        final_status = self._summarize_project_status(project_state)
+        project_state["status"] = final_status
+        project_state["elapsed_seconds"] = round(time.perf_counter() - project_started_at, 3)
+        self.file_manager.write_json(project_root / "project_state.json", project_state)
+
+        if final_status != "completed":
+            self.context.console.status(
+                f"Project {resolved_name} ended with status {final_status} in {self.context.console.format_duration(project_state['elapsed_seconds'])}"
+            )
+            return project_state
 
         all_rtl = self.get_all_rtl_files(project_state)
         self.context.console.status("Generating onboarding assets")
@@ -151,6 +164,10 @@ class Orchestrator:
             )
         self._write_onboard_assets(project_root, onboard_message)
 
+        project_state["current_step"] = project_state["total_steps"]
+        project_state["status"] = "completed"
+        self.file_manager.write_json(project_root / "project_state.json", project_state)
+
         self.context.console.status("Writing final project documentation")
         with self.context.console.spinner("Calling guide_writer"):
             project_doc = await guide_writer.send(
@@ -158,8 +175,6 @@ class Orchestrator:
             )
         self.file_manager.write_text(project_root / "docs" / "project_report.md", project_doc.artifacts.get("document", project_doc.content))
 
-        project_state["status"] = "completed"
-        project_state["elapsed_seconds"] = round(time.perf_counter() - project_started_at, 3)
         self.file_manager.write_json(project_root / "project_state.json", project_state)
         self.context.console.status(
             f"Project completed: {resolved_name} in {self.context.console.format_duration(project_state['elapsed_seconds'])}"
@@ -209,36 +224,15 @@ class Orchestrator:
                     metadata={"step": step["step"], "step_id": step["step_id"], "module": module_name},
                 )
             )
-
-        harness = HarnessLoop(
-            rtl_designer,
-            verifier,
-            max_iterations=int(self.settings["system"].get("harness_max_iterations", 15)),
-            progress_callback=self.context.console.status,
+        verilog, verify_result, sim_result, rtl_path, tb_path = await self._run_step_with_repair_loop(
+            step=step,
+            step_spec=step_spec,
+            final_spec=final_spec,
+            project_root=project_root,
+            rtl_designer=rtl_designer,
+            verifier=verifier,
+            initial_rtl_result=rtl_result,
         )
-        self.context.console.status(f"Verifying RTL for {module_name}")
-        with self.context.console.spinner(f"Running design-verification harness for {module_name}"):
-            verify_result = await harness.run_from_agent_a_response(
-                AgentMessage(
-                    role=rtl_result.role,
-                    content=rtl_result.content,
-                    artifacts={
-                        "step_spec": step,
-                        "module_spec": step_spec,
-                        "project_spec": final_spec,
-                        "verilog": rtl_result.artifacts.get("verilog", ""),
-                    },
-                    metadata={"step": step["step"], "step_id": step["step_id"], "module": module_name},
-                )
-            )
-
-        verilog = rtl_result.artifacts.get("verilog", "")
-        testbench = verify_result.artifacts.get("testbench", "")
-        rtl_path = self.file_manager.write_text(project_root / "rtl" / f"{module_name}.v", verilog)
-        tb_path = self.file_manager.write_text(project_root / "tb" / f"tb_{module_name}.v", testbench)
-        self.context.console.status(f"Running simulation for {module_name}")
-        with self.context.console.spinner(f"Running simulator for {module_name}"):
-            sim_result = await self._simulate(project_root / "sim" / module_name, [str(rtl_path)], str(tb_path))
         self.context.console.status(f"Writing documentation for {module_name}")
         with self.context.console.spinner(f"Calling guide_writer for {module_name}"):
             doc = await guide_writer.send(
@@ -266,6 +260,92 @@ class Orchestrator:
             "status": "completed" if sim_result["pass"] else "failed",
         }
 
+    async def _run_step_with_repair_loop(
+        self,
+        step: dict[str, Any],
+        step_spec: dict[str, Any],
+        final_spec: dict[str, Any],
+        project_root: Path,
+        rtl_designer: RTLDesignerAgent,
+        verifier: VerifierAgent,
+        initial_rtl_result: AgentMessage,
+    ) -> tuple[str, AgentMessage, dict[str, object], Path, Path]:
+        module_name = step["module"]
+        max_attempts = int(self.settings["system"].get("harness_max_iterations", 15))
+        rtl_result = initial_rtl_result
+        latest_verify_result = AgentMessage(role="verifier", content="", artifacts={"testbench": ""}, metadata={})
+        latest_sim_result: dict[str, object] = {"status": "FAIL", "log": "", "pass": False}
+        rtl_path = project_root / "rtl" / f"{module_name}.v"
+        tb_path = project_root / "tb" / f"tb_{module_name}.v"
+
+        for attempt in range(1, max_attempts + 1):
+            harness = HarnessLoop(
+                rtl_designer,
+                verifier,
+                max_iterations=max_attempts,
+                progress_callback=self.context.console.status,
+            )
+            self.context.console.status(f"Verifying RTL for {module_name}")
+            with self.context.console.spinner(f"Running design-verification harness for {module_name}"):
+                latest_verify_result = await harness.run_from_agent_a_response(
+                    AgentMessage(
+                        role=rtl_result.role,
+                        content=rtl_result.content,
+                        artifacts={
+                            "step_spec": step,
+                            "module_spec": step_spec,
+                            "project_spec": final_spec,
+                            "verilog": rtl_result.artifacts.get("verilog", ""),
+                        },
+                        metadata={"step": step["step"], "step_id": step["step_id"], "module": module_name},
+                    )
+                )
+
+            verilog = rtl_result.artifacts.get("verilog", "")
+            testbench = latest_verify_result.artifacts.get("testbench", "")
+            rtl_path = self.file_manager.write_text(rtl_path, verilog)
+            tb_path = self.file_manager.write_text(tb_path, testbench)
+
+            self.context.console.status(f"Running simulation for {module_name}")
+            with self.context.console.spinner(f"Running simulator for {module_name}"):
+                latest_sim_result = await self._simulate(project_root / "sim" / module_name, [str(rtl_path)], str(tb_path))
+
+            if latest_sim_result["pass"]:
+                return verilog, latest_verify_result, latest_sim_result, rtl_path, tb_path
+
+            if attempt == max_attempts:
+                break
+
+            self.context.console.status(
+                f"Simulation failed for {module_name}; sending sim feedback back to rtl_designer (attempt {attempt + 1}/{max_attempts})"
+            )
+            with self.context.console.spinner(f"Repairing RTL for {module_name}"):
+                rtl_result = await rtl_designer.send(
+                    AgentMessage(
+                        role="verifier",
+                        content="Revise the RTL to resolve the compile or simulation failure and preserve the verified intent.",
+                        artifacts={
+                            "step_spec": step,
+                            "module_spec": step_spec,
+                            "project_spec": final_spec,
+                            "verilog": verilog,
+                            "testbench": testbench,
+                            "sim_log": latest_sim_result.get("log", ""),
+                            "sim_status": latest_sim_result.get("status", ""),
+                            "code_review": latest_verify_result.content,
+                            "fix_suggestion": latest_verify_result.artifacts.get("fix_suggestion", ""),
+                        },
+                        metadata={
+                            "step": step["step"],
+                            "step_id": step["step_id"],
+                            "module": module_name,
+                            "repair_attempt": attempt + 1,
+                        },
+                    )
+                )
+
+        return rtl_result.artifacts.get("verilog", ""), latest_verify_result, latest_sim_result, rtl_path, tb_path
+
     async def _simulate(self, work_dir: Path, rtl_files: list[str], tb_file: str) -> dict[str, object]:
         simulator_settings = self.settings.get("simulator", {})
         simulator_type = simulator_settings.get("type", "icarus")
@@ -278,11 +358,17 @@ class Orchestrator:
         return await runner.run(rtl_files, tb_file, str(work_dir), timeout=timeout)
 
     def get_ready_steps(self, project_state: dict[str, Any]) -> list[dict[str, Any]]:
-        completed = {item["module"] for item in project_state["steps"] if item["status"] == "completed"}
+        completed_modules = {item["module"] for item in project_state["steps"] if item["status"] == "completed"}
+        completed_steps = {item["step"] for item in project_state["steps"] if item["status"] == "completed"}
+        completed_step_ids = {item["step_id"] for item in project_state["steps"] if item["status"] == "completed"}
         return [
             step
             for step in project_state["steps"]
-            if step["status"] == "pending" and all(dependency in completed for dependency in step.get("dependencies", []))
+            if step["status"] == "pending"
+            and all(
+                self._dependency_satisfied(dependency, completed_modules, completed_steps, completed_step_ids)
+                for dependency in step.get("dependencies", [])
+            )
         ]
 
     def _initialize_project_state(self, project_name: str, final_spec: dict[str, Any], board: str | None) -> dict[str, Any]:
@@ -294,11 +380,11 @@ class Orchestrator:
                     "step": step_number,
                     "step_id": item.get("step_id", f"step_{step_number}"),
                     "module": item["module"],
-                    "description": item.get("description", f"Implement and verify {item['module']}"),
-                    "dependencies": item.get("dependencies", item.get("depends_on", [])),
+                    "description": self._normalize_step_description(item),
+                    "dependencies": self._coerce_list(item.get("dependencies", item.get("depends_on", []))),
                     "priority": item.get("priority", "medium"),
-                    "verification": item.get("verification", item.get("verification_scope", [])),
-                    "deliverables": item.get("deliverables", []),
+                    "verification": self._coerce_list(item.get("verification", item.get("verification_scope", []))),
+                    "deliverables": self._coerce_list(item.get("deliverables", [])),
                     "status": "pending",
                     "rtl_file": None,
                     "tb_file": None,
@@ -433,6 +519,50 @@ class Orchestrator:
             seen.add(resolved)
             unique.append(path)
         return unique
+
+    @staticmethod
+    def _coerce_list(value: Any) -> list[Any]:
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return value
+        return [value]
+
+    @staticmethod
+    def _normalize_step_description(item: dict[str, Any]) -> str:
+        description = item.get("description")
+        if isinstance(description, str) and description.strip():
+            return description.strip()
+        module = item.get("module", "unnamed_module")
+        step_id = item.get("step_id")
+        if isinstance(step_id, str) and step_id.strip():
+            return f"Implement and verify {module} ({step_id.strip()})"
+        return f"Implement and verify {module}"
+
+    @staticmethod
+    def _dependency_satisfied(
+        dependency: Any,
+        completed_modules: set[str],
+        completed_steps: set[int],
+        completed_step_ids: set[str],
+    ) -> bool:
+        if isinstance(dependency, int):
+            return dependency in completed_steps
+        if isinstance(dependency, str):
+            if dependency in completed_modules or dependency in completed_step_ids:
+                return True
+            if dependency.isdigit():
+                return int(dependency) in completed_steps
+        return False
+
+    @staticmethod
+    def _summarize_project_status(project_state: dict[str, Any]) -> str:
+        statuses = [step["status"] for step in project_state["steps"]]
+        if any(status == "failed" for status in statuses):
+            return "failed"
+        if statuses and all(status == "completed" for status in statuses):
+            return "completed"
+        return "in_progress"
 
     @staticmethod
     def _slugify(text: str) -> str:

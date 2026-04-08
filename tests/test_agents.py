@@ -38,6 +38,14 @@ class AgentTests(unittest.TestCase):
         self.assertEqual(onboard_result.artifacts["constraints"], "x")
         self.assertEqual(guide_result.artifacts["document"], "# Demo")
 
+    def test_code_agents_unescape_html_entities(self):
+        rtl_agent = RTLDesignerAgent("rtl", DummyLLM("<VERILOG>if (a &lt; b) y &lt;= b;</VERILOG>"), "")
+        verifier = VerifierAgent("verifier", DummyLLM("<TESTBENCH>if (a &lt; b) begin y &lt;= b; end</TESTBENCH><SCORE>100</SCORE><VERDICT>PASS</VERDICT>"), "")
+        rtl_result = asyncio.run(rtl_agent.send(AgentMessage(role="manager", content="x")))
+        verify_result = asyncio.run(verifier.send(AgentMessage(role="manager", content="x")))
+        self.assertIn("if (a < b) y <=", rtl_result.artifacts["verilog"])
+        self.assertIn("if (a < b) begin y <=", verify_result.artifacts["testbench"])
+
     def test_manager_normalizes_duplicate_module_steps(self):
         spec = {
             "architecture_name": "alu8",
@@ -69,6 +77,18 @@ class AgentTests(unittest.TestCase):
         step = normalized["design_steps"][0]
         self.assertEqual(step["verification"], ["Provide test vectors"])
         self.assertEqual(step["deliverables"], ["RTL file"])
+
+    def test_manager_uses_real_description_instead_of_numeric_step(self):
+        spec = {
+            "architecture_name": "regfile",
+            "modules": [{"name": "regfile_8x8"}],
+            "design_steps": [
+                {"step": 1, "step_id": "step_01_regfile_8x8", "module": "regfile_8x8"},
+            ],
+        }
+        normalized = ManagerAgent.normalize_execution_plan(spec)
+        step = normalized["design_steps"][0]
+        self.assertEqual(step["description"], "step_01_regfile_8x8")
 
 
 if __name__ == "__main__":

@@ -4,10 +4,12 @@ import unittest
 from pathlib import Path
 import shutil
 import uuid
+import asyncio
 
 if "yaml" not in sys.modules:
     sys.modules["yaml"] = types.SimpleNamespace(safe_load=lambda *_args, **_kwargs: {}, safe_dump=lambda *_args, **_kwargs: None)
 
+from src.agents.base import AgentMessage
 from src.utils.file_manager import FileManager
 from src.orchestrator import Orchestrator
 
@@ -78,6 +80,124 @@ class PathTests(unittest.TestCase):
         self.assertTrue(protected_src.exists())
         self.assertTrue((protected_src / "main.py").exists())
         self.assertNotIn(str(protected_src), removed)
+
+    def test_initialize_project_state_normalizes_description_and_scalar_lists(self):
+        orchestrator = Orchestrator.__new__(Orchestrator)
+        spec = {
+            "design_steps": [
+                {
+                    "step": 1,
+                    "step_id": "step_01_regfile_8x8",
+                    "module": "regfile_8x8",
+                    "verification": "Check reset behavior",
+                    "deliverables": "RTL file",
+                }
+            ],
+            "constraints": {},
+        }
+
+        state = orchestrator._initialize_project_state("regfile", spec, None)
+        step = state["steps"][0]
+
+        self.assertEqual(step["description"], "Implement and verify regfile_8x8 (step_01_regfile_8x8)")
+        self.assertEqual(step["verification"], ["Check reset behavior"])
+        self.assertEqual(step["deliverables"], ["RTL file"])
+
+    def test_ready_steps_accept_numeric_and_named_dependencies(self):
+        orchestrator = Orchestrator.__new__(Orchestrator)
+        project_state = {
+            "steps": [
+                {"step": 1, "step_id": "step_01_alu", "module": "alu", "status": "completed", "dependencies": []},
+                {"step": 2, "step_id": "step_02_regfile", "module": "register_file", "status": "completed", "dependencies": []},
+                {"step": 3, "step_id": "step_03_top", "module": "cpu_top", "status": "pending", "dependencies": [1, "register_file"]},
+            ]
+        }
+        ready = orchestrator.get_ready_steps(project_state)
+        self.assertEqual([step["module"] for step in ready], ["cpu_top"])
+
+    def test_project_status_summary_reflects_failures(self):
+        orchestrator = Orchestrator.__new__(Orchestrator)
+        self.assertEqual(orchestrator._summarize_project_status({"steps": [{"status": "completed"}]}), "completed")
+        self.assertEqual(orchestrator._summarize_project_status({"steps": [{"status": "failed"}, {"status": "pending"}]}), "failed")
+        self.assertEqual(orchestrator._summarize_project_status({"steps": [{"status": "completed"}, {"status": "pending"}]}), "in_progress")
+
+    def test_repair_loop_feeds_sim_log_back_to_rtl_designer(self):
+        class DummyConsole:
+            def status(self, _message):
+                pass
+
+            class _Spinner:
+                def __enter__(self):
+                    return None
+
+                def __exit__(self, exc_type, exc, tb):
+                    return False
+
+            def spinner(self, _message):
+                return self._Spinner()
+
+        class FakeRTLDesigner:
+            def __init__(self):
+                self.name = "rtl_designer"
+                self.calls = []
+
+            async def send(self, message):
+                self.calls.append(message)
+                if len(self.calls) == 1:
+                    return AgentMessage(role="rtl_designer", content="draft", artifacts={"verilog": "module demo; assign y = a &lt; b; endmodule"})
+                return AgentMessage(role="rtl_designer", content="repaired", artifacts={"verilog": "module demo; assign y = (a < b); endmodule"})
+
+        class FakeVerifier:
+            def __init__(self):
+                self.name = "verifier"
+
+            async def send(self, _message):
+                return AgentMessage(
+                    role="verifier",
+                    content="found issue",
+                    artifacts={"testbench": "module tb; endmodule", "fix_suggestion": "replace escaped operators"},
+                    metadata={"approved": True, "score": 100},
+                )
+
+        orchestrator = Orchestrator.__new__(Orchestrator)
+        orchestrator.settings = {"system": {"harness_max_iterations": 3}}
+        orchestrator.context = types.SimpleNamespace(console=DummyConsole())
+        orchestrator.file_manager = FileManager(self.temp_root)
+
+        simulate_calls = []
+
+        async def fake_simulate(_work_dir, _rtl_files, _tb_file):
+            simulate_calls.append(True)
+            if len(simulate_calls) == 1:
+                return {"status": "COMPILE_ERROR", "log": "syntax error near &lt;=", "pass": False}
+            return {"status": "PASS", "log": "FINAL PASS", "pass": True}
+
+        orchestrator._simulate = fake_simulate
+
+        rtl_designer = FakeRTLDesigner()
+        verifier = FakeVerifier()
+        step = {"step": 1, "step_id": "step_01_demo", "module": "demo"}
+        initial_rtl = asyncio.run(rtl_designer.send(AgentMessage(role="manager", content="x")))
+
+        verilog, verify_result, sim_result, _rtl_path, _tb_path = asyncio.run(
+            orchestrator._run_step_with_repair_loop(
+                step=step,
+                step_spec={"name": "demo"},
+                final_spec={"modules": [{"name": "demo"}]},
+                project_root=self.temp_root / "workspace" / "demo_project",
+                rtl_designer=rtl_designer,
+                verifier=verifier,
+                initial_rtl_result=initial_rtl,
+            )
+        )
+
+        self.assertEqual(sim_result["status"], "PASS")
+        self.assertIn("module demo; assign y = (a < b); endmodule", verilog)
+        self.assertEqual(verify_result.artifacts["fix_suggestion"], "replace escaped operators")
+        self.assertEqual(len(rtl_designer.calls), 2)
+        repair_message = rtl_designer.calls[-1]
+        self.assertIn("syntax error near &lt;=", repair_message.artifacts["sim_log"])
+        self.assertEqual(repair_message.artifacts["sim_status"], "COMPILE_ERROR")
 
 
 if __name__ == "__main__":
