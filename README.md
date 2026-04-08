@@ -1,7 +1,11 @@
-# Oh_My_HLS_Claw
+<p align="center">
+  <img src="docs/assets/logo.svg" alt="Oh_My_HLS_Claw logo" width="100%">
+</p>
 
-> Natural language in, Verilog RTL out.
-> A multi-agent hardware design pipeline for planning, coding, verification, documentation, and FPGA onboarding.
+<p align="center">
+  <strong>Natural language in, Verilog RTL out.</strong><br/>
+  A multi-agent hardware design pipeline for planning, coding, verification, documentation, and FPGA onboarding.
+</p>
 
 Oh_My_HLS_Claw is a Python-based orchestration system that turns a design request or reference software into:
 
@@ -29,6 +33,21 @@ It is especially useful if you want an agentic flow that can:
 - keep a resumable project state
 - run verification as part of the loop
 - swap LLM providers and models per sub-agent
+
+## Design Energy
+
+This project is shaped by two strong influences:
+
+- GSD-flavored agentic workflows: keep momentum, avoid ceremony, move the artifact forward
+- Karpathy-style coding discipline: think before acting, keep things simple, make surgical changes, and define success criteria up front
+
+The second influence is directly reflected in the prompt design style inspired by [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills).
+
+## System Architecture
+
+<p align="center">
+  <img src="docs/assets/system-architecture.svg" alt="Oh_My_HLS_Claw system architecture" width="100%">
+</p>
 
 ## What You Need Installed
 
