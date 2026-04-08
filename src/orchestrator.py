@@ -95,11 +95,14 @@ class Orchestrator:
             manager,
             max_iterations=int(self.settings["system"].get("harness_max_iterations", 5)),
             progress_callback=self.context.console.status,
+            return_agent_a_on_agent_b_convergence=True,
         )
         self.context.console.status("Refining spec with manager")
         with self.context.console.spinner("Running planner-manager harness"):
             final_spec_message = await harness_spec.run(initial_spec)
         final_spec = final_spec_message.artifacts.get("spec", self._safe_json(final_spec_message.content))
+        if not final_spec:
+            final_spec = initial_spec.artifacts.get("spec", self._safe_json(initial_spec.content))
 
         resolved_name = project_name or final_spec.get("architecture_name") or self._slugify(user_input) or "unnamed_project"
         project_root = self.file_manager.ensure_project(resolved_name)

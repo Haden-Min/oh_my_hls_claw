@@ -14,12 +14,14 @@ class HarnessLoop:
         max_iterations: int = 5,
         convergence_checker: Callable[[AgentMessage, int], bool] | None = None,
         progress_callback: Callable[[str], None] | None = None,
+        return_agent_a_on_agent_b_convergence: bool = False,
     ) -> None:
         self.agent_a = agent_a
         self.agent_b = agent_b
         self.max_iterations = max_iterations
         self.convergence_checker = convergence_checker or self._default_convergence
         self.progress_callback = progress_callback
+        self.return_agent_a_on_agent_b_convergence = return_agent_a_on_agent_b_convergence
         self.logger = get_logger()
 
     async def run(self, initial_message: AgentMessage) -> AgentMessage:
@@ -40,7 +42,7 @@ class HarnessLoop:
             current_message = response_b
             if self.convergence_checker(response_b, iteration):
                 self.logger.info("[Harness] converged at iteration %s", iteration + 1)
-                return response_b
+                return response_a if self.return_agent_a_on_agent_b_convergence else response_b
         self.logger.info("[Harness] max iterations reached")
         return response_a
 
