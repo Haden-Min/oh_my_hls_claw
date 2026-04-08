@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 import re
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -80,6 +81,7 @@ class Orchestrator:
         }
 
     async def run_project(self, user_input: str, project_name: str | None = None, board: str | None = None) -> dict[str, Any]:
+        project_started_at = time.perf_counter()
         planner: PlannerAgent = self.agents["planner"]
         manager: ManagerAgent = self.agents["manager"]
         rtl_designer: RTLDesignerAgent = self.agents["rtl_designer"]
@@ -143,8 +145,11 @@ class Orchestrator:
         self.file_manager.write_text(project_root / "docs" / "project_report.md", project_doc.artifacts.get("document", project_doc.content))
 
         project_state["status"] = "completed"
+        project_state["elapsed_seconds"] = round(time.perf_counter() - project_started_at, 3)
         self.file_manager.write_json(project_root / "project_state.json", project_state)
-        self.context.console.status(f"Project completed: {resolved_name}")
+        self.context.console.status(
+            f"Project completed: {resolved_name} in {self.context.console.format_duration(project_state['elapsed_seconds'])}"
+        )
         return project_state
 
     async def run_parallel_steps(
@@ -175,6 +180,7 @@ class Orchestrator:
         project_root: Path,
         final_spec: dict[str, Any],
     ) -> dict[str, Any]:
+        step_started_at = time.perf_counter()
         module_name = step["module"]
         step_spec = self._find_module_spec(final_spec, module_name)
         step["status"] = "in_progress"
@@ -229,6 +235,10 @@ class Orchestrator:
                 )
             )
         doc_path = self.file_manager.write_text(project_root / "docs" / f"step_{int(step['step']):02d}_{module_name}.md", doc.artifacts.get("document", doc.content))
+        elapsed_seconds = round(time.perf_counter() - step_started_at, 3)
+        self.context.console.status(
+            f"Step {step['step']} complete for {module_name} in {self.context.console.format_duration(elapsed_seconds)}"
+        )
         return {
             "step": step["step"],
             "step_id": step["step_id"],
@@ -238,6 +248,7 @@ class Orchestrator:
             "sim_result": sim_result["status"],
             "sim_log_file": str(self.file_manager.write_text(project_root / "sim" / module_name / "sim.log", str(sim_result["log"]))),
             "doc_file": str(doc_path),
+            "elapsed_seconds": elapsed_seconds,
             "status": "completed" if sim_result["pass"] else "failed",
         }
 

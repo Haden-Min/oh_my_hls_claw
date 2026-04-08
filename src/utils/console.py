@@ -36,13 +36,16 @@ class ProgressConsole:
     def spinner(self, message: str):
         stop_event = threading.Event()
         frames = itertools.cycle(["|", "/", "-", "\\"])
+        started_at = time.perf_counter()
 
         def run() -> None:
             while not stop_event.is_set():
                 frame = next(frames)
-                print(f"\r{frame} {message}", end="", flush=True)
+                elapsed = self.format_duration(time.perf_counter() - started_at)
+                print(f"\r{frame} {message} [{elapsed}]", end="", flush=True)
                 time.sleep(0.12)
-            print(f"\rOK {message}{' ' * 10}")
+            elapsed = self.format_duration(time.perf_counter() - started_at)
+            print(f"\rOK {message} [{elapsed}]{' ' * 10}")
 
         thread = threading.Thread(target=run, daemon=True)
         thread.start()
@@ -54,3 +57,11 @@ class ProgressConsole:
 
     def status(self, message: str) -> None:
         self.print(f"[status] {message}")
+
+    @staticmethod
+    def format_duration(seconds: float) -> str:
+        if seconds < 60:
+            return f"{seconds:.1f}s"
+        minutes = int(seconds // 60)
+        remaining = seconds - (minutes * 60)
+        return f"{minutes}m {remaining:.1f}s"
