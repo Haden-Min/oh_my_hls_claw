@@ -4,7 +4,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from .console import Console, Panel
+from .console import Panel, ProgressConsole
 from .locale import Locale
 
 
@@ -15,7 +15,7 @@ class CheckpointRejected(RuntimeError):
 @dataclass
 class CheckpointManager:
     locale: Locale
-    console: Console
+    console: ProgressConsole
 
     async def prompt(self, name: str, data: Any) -> Any:
         self.console.print(Panel(json.dumps(data, indent=2, ensure_ascii=False), title=self.locale.t("checkpoint.title", name=name)))

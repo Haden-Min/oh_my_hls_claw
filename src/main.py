@@ -4,7 +4,7 @@ import argparse
 import asyncio
 from pathlib import Path
 
-from .utils.console import Console, Panel
+from .utils.console import Console, Panel, ProgressConsole
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -37,6 +37,7 @@ async def start_new_project(args: argparse.Namespace) -> None:
     from .orchestrator import Orchestrator
 
     root = Path(__file__).resolve().parent.parent
+    progress_console = ProgressConsole(Console())
     orchestrator = Orchestrator(root)
     if args.ref:
         ref_text = Path(args.ref).read_text(encoding="utf-8")
@@ -44,10 +45,10 @@ async def start_new_project(args: argparse.Namespace) -> None:
     elif args.desc:
         user_input = args.desc
     else:
-        user_input = Console().input("Describe the digital system to design: ").strip()
+        user_input = progress_console.input("Describe the digital system to design: ").strip()
     result = await orchestrator.run_project(user_input, project_name=args.project, board=args.board)
     orchestrator.save_costs(result["project_name"])
-    Console().print(Panel(f"Project completed: {result['project_name']}", title="Done"))
+    progress_console.print(Panel(f"Project completed: {result['project_name']}", title="Done"))
 
 
 async def resume_project(args: argparse.Namespace) -> None:

@@ -19,7 +19,7 @@ from .llm.router import ModelRouter
 from .sim.icarus_runner import IcarusRunner
 from .sim.vivado_runner import VivadoRunner
 from .utils.checkpoint import CheckpointManager
-from .utils.console import Console
+from .utils.console import Console, ProgressConsole
 from .utils.cost_tracker import CostTracker
 from .utils.file_manager import FileManager
 from .utils.locale import Locale
@@ -32,7 +32,7 @@ class RuntimeContext:
     settings: dict[str, Any]
     file_manager: FileManager
     locale: Locale
-    console: Console
+    console: ProgressConsole
     cost_tracker: CostTracker
     checkpoint_manager: CheckpointManager
 
@@ -47,7 +47,7 @@ class Orchestrator:
         self.logger = get_logger()
         system_settings = self.settings.get("system", {})
         locale = Locale(system_settings.get("language", "en"), self.root / "locale")
-        console = Console()
+        console = ProgressConsole(Console())
         cost_settings = self.settings.get("cost_tracking", {})
         self.context = RuntimeContext(
             root=self.root,
@@ -87,9 +87,18 @@ class Orchestrator:
         guide_writer: GuideWriterAgent = self.agents["guide_writer"]
         onboarder: OnboarderAgent = self.agents["onboarder"]
 
-        initial_spec = await planner.send(AgentMessage(role="user", content=user_input))
-        harness_spec = HarnessLoop(planner, manager, max_iterations=int(self.settings["system"].get("harness_max_iterations", 5)))
-        final_spec_message = await harness_spec.run(initial_spec)
+        self.context.console.status("Planning architecture")
+        with self.context.console.spinner("Calling planner"):
+            initial_spec = await planner.send(AgentMessage(role="user", content=user_input))
+        harness_spec = HarnessLoop(
+            planner,
+            manager,
+            max_iterations=int(self.settings["system"].get("harness_max_iterations", 5)),
+            progress_callback=self.context.console.status,
+        )
+        self.context.console.status("Refining spec with manager")
+        with self.context.console.spinner("Running planner-manager harness"):
+            final_spec_message = await harness_spec.run(initial_spec)
         final_spec = final_spec_message.artifacts.get("spec", self._safe_json(final_spec_message.content))
 
         resolved_name = project_name or final_spec.get("architecture_name") or self._slugify(user_input) or "unnamed_project"
@@ -104,28 +113,34 @@ class Orchestrator:
         self.file_manager.write_json(project_root / "spec" / "final_spec.json", final_spec)
 
         while ready_steps := self.get_ready_steps(project_state):
+            self.context.console.status(f"Ready steps: {', '.join(step['module'] for step in ready_steps)}")
             results = await self.run_parallel_steps(project_state, ready_steps, rtl_designer, verifier, guide_writer, project_root, final_spec)
             for result in results:
                 self._apply_step_result(project_state, result)
             self.file_manager.write_json(project_root / "project_state.json", project_state)
 
         all_rtl = self.get_all_rtl_files(project_state)
-        onboard_message = await onboarder.send(
-            AgentMessage(
-                role="manager",
-                content="Generate onboarding files.",
-                artifacts={"rtl_files": all_rtl, "constraints": project_state.get("constraints", {})},
+        self.context.console.status("Generating onboarding assets")
+        with self.context.console.spinner("Calling onboarder"):
+            onboard_message = await onboarder.send(
+                AgentMessage(
+                    role="manager",
+                    content="Generate onboarding files.",
+                    artifacts={"rtl_files": all_rtl, "constraints": project_state.get("constraints", {})},
+                )
             )
-        )
         self._write_onboard_assets(project_root, onboard_message)
 
-        project_doc = await guide_writer.send(
-            AgentMessage(role="manager", content="Write final project documentation.", artifacts=self.get_full_project_data(project_root, project_state))
-        )
+        self.context.console.status("Writing final project documentation")
+        with self.context.console.spinner("Calling guide_writer"):
+            project_doc = await guide_writer.send(
+                AgentMessage(role="manager", content="Write final project documentation.", artifacts=self.get_full_project_data(project_root, project_state))
+            )
         self.file_manager.write_text(project_root / "docs" / "project_report.md", project_doc.artifacts.get("document", project_doc.content))
 
         project_state["status"] = "completed"
         self.file_manager.write_json(project_root / "project_state.json", project_state)
+        self.context.console.status(f"Project completed: {resolved_name}")
         return project_state
 
     async def run_parallel_steps(
@@ -159,37 +174,51 @@ class Orchestrator:
         module_name = step["module"]
         step_spec = self._find_module_spec(final_spec, module_name)
         step["status"] = "in_progress"
-        rtl_result = await rtl_designer.send(
-            AgentMessage(
-                role="manager",
-                content="Generate Verilog module from step spec.",
-                artifacts={"step_spec": step_spec, "project_spec": final_spec},
-                metadata={"step": step["step"], "module": module_name},
+        self.context.console.status(f"Step {step['step']}: starting module {module_name}")
+        self.context.console.status(f"Generating RTL for {module_name}")
+        with self.context.console.spinner(f"Calling rtl_designer for {module_name}"):
+            rtl_result = await rtl_designer.send(
+                AgentMessage(
+                    role="manager",
+                    content="Generate Verilog module from step spec.",
+                    artifacts={"step_spec": step_spec, "project_spec": final_spec},
+                    metadata={"step": step["step"], "module": module_name},
+                )
             )
-        )
 
-        harness = HarnessLoop(rtl_designer, verifier, max_iterations=int(self.settings["system"].get("harness_max_iterations", 5)))
-        verify_result = await harness.run(
-            AgentMessage(
-                role="manager",
-                content="Validate generated RTL.",
-                artifacts={"step_spec": step_spec, "verilog": rtl_result.artifacts.get("verilog", "")},
-                metadata={"step": step["step"], "module": module_name},
-            )
+        harness = HarnessLoop(
+            rtl_designer,
+            verifier,
+            max_iterations=int(self.settings["system"].get("harness_max_iterations", 5)),
+            progress_callback=self.context.console.status,
         )
+        self.context.console.status(f"Verifying RTL for {module_name}")
+        with self.context.console.spinner(f"Running design-verification harness for {module_name}"):
+            verify_result = await harness.run(
+                AgentMessage(
+                    role="manager",
+                    content="Validate generated RTL.",
+                    artifacts={"step_spec": step_spec, "verilog": rtl_result.artifacts.get("verilog", "")},
+                    metadata={"step": step["step"], "module": module_name},
+                )
+            )
 
         verilog = rtl_result.artifacts.get("verilog", "")
         testbench = verify_result.artifacts.get("testbench", "")
         rtl_path = self.file_manager.write_text(project_root / "rtl" / f"{module_name}.v", verilog)
         tb_path = self.file_manager.write_text(project_root / "tb" / f"tb_{module_name}.v", testbench)
-        sim_result = await self._simulate(project_root / "sim" / module_name, [str(rtl_path)], str(tb_path))
-        doc = await guide_writer.send(
-            AgentMessage(
-                role="manager",
-                content=f"Write step {step['step']} documentation.",
-                artifacts={"spec": step_spec, "rtl": verilog, "tb": testbench, "sim_log": sim_result["log"]},
+        self.context.console.status(f"Running simulation for {module_name}")
+        with self.context.console.spinner(f"Running simulator for {module_name}"):
+            sim_result = await self._simulate(project_root / "sim" / module_name, [str(rtl_path)], str(tb_path))
+        self.context.console.status(f"Writing documentation for {module_name}")
+        with self.context.console.spinner(f"Calling guide_writer for {module_name}"):
+            doc = await guide_writer.send(
+                AgentMessage(
+                    role="manager",
+                    content=f"Write step {step['step']} documentation.",
+                    artifacts={"spec": step_spec, "rtl": verilog, "tb": testbench, "sim_log": sim_result["log"]},
+                )
             )
-        )
         doc_path = self.file_manager.write_text(project_root / "docs" / f"step{step['step']}_{module_name}.md", doc.artifacts.get("document", doc.content))
         return {
             "step": step["step"],
@@ -326,7 +355,7 @@ async def initialize_system(root: str | Path, console: Console | None = None) ->
     settings_path = root_path / "config" / "settings.yaml"
     env_path = root_path / ".env"
     settings = file_manager.read_yaml(settings_path)
-    console = console or Console()
+    console = ProgressConsole(console or Console())
     from .utils.oauth_health import check_openai_oauth_proxy
 
     console.print("Oh_My_HLS_Claw - Initial Setup")
