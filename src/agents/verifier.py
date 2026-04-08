@@ -18,10 +18,12 @@ class VerifierAgent(BaseAgent):
         code_review = self.extract_tag(raw_response, "CODE_REVIEW")
         verdict = self.extract_tag(raw_response, "VERDICT") or "REVIEW"
         fix = self.extract_tag(raw_response, "FIX_SUGGESTION")
-        approved = verdict.strip().upper() == "PASS"
+        score_text = self.extract_tag(raw_response, "SCORE")
+        score = int(score_text) if score_text.isdigit() else (100 if verdict.strip().upper() == "PASS" else 0 if verdict.strip().upper() == "FAIL" else 50)
+        approved = score >= 100 or verdict.strip().upper() == "PASS"
         return AgentMessage(
             role=self.name,
             content=code_review or raw_response,
             artifacts={"testbench": testbench, "fix_suggestion": fix, "verdict": verdict},
-            metadata={"approved": approved, "verdict": verdict},
+            metadata={"approved": approved, "verdict": verdict, "score": score},
         )

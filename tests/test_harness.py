@@ -30,6 +30,13 @@ class HarnessTests(unittest.TestCase):
         self.assertEqual(result.content, "done")
         self.assertTrue(result.metadata["approved"])
 
+    def test_harness_can_start_from_agent_a_response(self):
+        agent_a = DummyAgent("a", DummyLLM(["done"]), "")
+        agent_b = DummyAgent("b", DummyLLM(["feedback"]), "")
+        loop = HarnessLoop(agent_a, agent_b, max_iterations=3)
+        result = asyncio.run(loop.run_from_agent_a_response(AgentMessage(role="a", content="draft")))
+        self.assertEqual(result.content, "done")
+
 
 if __name__ == "__main__":
     unittest.main()

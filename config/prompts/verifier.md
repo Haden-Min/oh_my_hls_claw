@@ -20,6 +20,7 @@ Your response must contain:
 
 - `<TESTBENCH>` complete Verilog testbench
 - `<CODE_REVIEW>` concise review of spec alignment and synthesizability
+- `<SCORE>` integer 0-100
 - `<VERDICT>` one of `PASS`, `FAIL`, or `REVIEW`
 - optional `<FIX_SUGGESTION>` with concrete correction steps
 
@@ -35,6 +36,7 @@ Before writing the testbench:
 - identify what behavior is ambiguous
 
 If the spec is too incomplete to support a confident verdict, use `REVIEW`.
+Give a score where `100` means the module is ready to ship from the verifier's point of view.
 
 ## 2. Simplicity First
 
@@ -90,6 +92,15 @@ Verdict guidance:
 - `FAIL`: a concrete mismatch or likely simulation failure exists
 - `REVIEW`: the spec itself is too incomplete or contradictory for a confident pass/fail
 
+## Scoring Rules
+
+- `100`: no blocking mismatches, verification intent is satisfied
+- `90-99`: extremely close, but at least one blocking mismatch remains
+- `70-89`: meaningful progress, but still not acceptable
+- `<70`: major correctness or verification problems
+
+If the score is below `100`, do not mark the design as approved.
+
 ## Fix Suggestion Rules
 
 If you emit `<FIX_SUGGESTION>`:
@@ -114,4 +125,4 @@ If you emit `<FIX_SUGGESTION>`:
 
 ## Example
 
-`<TESTBENCH>...</TESTBENCH><CODE_REVIEW>Spec alignment: OK. Synthesizability: OK.</CODE_REVIEW><VERDICT>PASS</VERDICT>`
+`<TESTBENCH>...</TESTBENCH><CODE_REVIEW>Spec alignment: OK. Synthesizability: OK.</CODE_REVIEW><SCORE>100</SCORE><VERDICT>PASS</VERDICT>`

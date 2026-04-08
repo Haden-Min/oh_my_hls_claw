@@ -93,16 +93,17 @@ class Orchestrator:
         harness_spec = HarnessLoop(
             planner,
             manager,
-            max_iterations=int(self.settings["system"].get("harness_max_iterations", 5)),
+            max_iterations=int(self.settings["system"].get("harness_max_iterations", 15)),
             progress_callback=self.context.console.status,
             return_agent_a_on_agent_b_convergence=True,
         )
         self.context.console.status("Refining spec with manager")
         with self.context.console.spinner("Running planner-manager harness"):
-            final_spec_message = await harness_spec.run(initial_spec)
+            final_spec_message = await harness_spec.run_from_agent_a_response(initial_spec)
         final_spec = final_spec_message.artifacts.get("spec", self._safe_json(final_spec_message.content))
         if not final_spec:
             final_spec = initial_spec.artifacts.get("spec", self._safe_json(initial_spec.content))
+        final_spec = manager.normalize_execution_plan(final_spec)
 
         resolved_name = project_name or final_spec.get("architecture_name") or self._slugify(user_input) or "unnamed_project"
         project_root = self.file_manager.ensure_project(resolved_name)
@@ -184,25 +185,30 @@ class Orchestrator:
                 AgentMessage(
                     role="manager",
                     content="Generate Verilog module from step spec.",
-                    artifacts={"step_spec": step_spec, "project_spec": final_spec},
-                    metadata={"step": step["step"], "module": module_name},
+                    artifacts={"step_spec": step, "module_spec": step_spec, "project_spec": final_spec},
+                    metadata={"step": step["step"], "step_id": step["step_id"], "module": module_name},
                 )
             )
 
         harness = HarnessLoop(
             rtl_designer,
             verifier,
-            max_iterations=int(self.settings["system"].get("harness_max_iterations", 5)),
+            max_iterations=int(self.settings["system"].get("harness_max_iterations", 15)),
             progress_callback=self.context.console.status,
         )
         self.context.console.status(f"Verifying RTL for {module_name}")
         with self.context.console.spinner(f"Running design-verification harness for {module_name}"):
-            verify_result = await harness.run(
+            verify_result = await harness.run_from_agent_a_response(
                 AgentMessage(
-                    role="manager",
-                    content="Validate generated RTL.",
-                    artifacts={"step_spec": step_spec, "verilog": rtl_result.artifacts.get("verilog", "")},
-                    metadata={"step": step["step"], "module": module_name},
+                    role=rtl_result.role,
+                    content=rtl_result.content,
+                    artifacts={
+                        "step_spec": step,
+                        "module_spec": step_spec,
+                        "project_spec": final_spec,
+                        "verilog": rtl_result.artifacts.get("verilog", ""),
+                    },
+                    metadata={"step": step["step"], "step_id": step["step_id"], "module": module_name},
                 )
             )
 
@@ -219,12 +225,13 @@ class Orchestrator:
                 AgentMessage(
                     role="manager",
                     content=f"Write step {step['step']} documentation.",
-                    artifacts={"spec": step_spec, "rtl": verilog, "tb": testbench, "sim_log": sim_result["log"]},
+                    artifacts={"spec": step, "module_spec": step_spec, "rtl": verilog, "tb": testbench, "sim_log": sim_result["log"]},
                 )
             )
-        doc_path = self.file_manager.write_text(project_root / "docs" / f"step{step['step']}_{module_name}.md", doc.artifacts.get("document", doc.content))
+        doc_path = self.file_manager.write_text(project_root / "docs" / f"step_{int(step['step']):02d}_{module_name}.md", doc.artifacts.get("document", doc.content))
         return {
             "step": step["step"],
+            "step_id": step["step_id"],
             "module": module_name,
             "rtl_file": str(rtl_path),
             "tb_file": str(tb_path),
@@ -256,16 +263,16 @@ class Orchestrator:
     def _initialize_project_state(self, project_name: str, final_spec: dict[str, Any], board: str | None) -> dict[str, Any]:
         steps = []
         for index, item in enumerate(final_spec.get("design_steps", []), start=1):
-            step_number = item.get("step", index)
+            step_number = int(item.get("step", index))
             steps.append(
                 {
                     "step": step_number,
                     "step_id": item.get("step_id", f"step_{step_number}"),
                     "module": item["module"],
-                    "description": item.get("description", ""),
-                    "dependencies": item.get("dependencies", []),
+                    "description": item.get("description", f"Implement and verify {item['module']}"),
+                    "dependencies": item.get("dependencies", item.get("depends_on", [])),
                     "priority": item.get("priority", "medium"),
-                    "verification": item.get("verification", []),
+                    "verification": item.get("verification", item.get("verification_scope", [])),
                     "deliverables": item.get("deliverables", []),
                     "status": "pending",
                     "rtl_file": None,
@@ -307,18 +314,18 @@ class Orchestrator:
         }
 
     def resume_project(self, project_name: str) -> dict[str, Any]:
-        project_root = self.root / "workspace" / project_name
+        project_root = self.file_manager.project_root(project_name)
         return self.file_manager.read_json(project_root / "project_state.json", default={})
 
     def status(self, project_name: str) -> dict[str, Any]:
         return self.resume_project(project_name)
 
     def cost(self, project_name: str) -> dict[str, Any]:
-        project_root = self.root / "workspace" / project_name
+        project_root = self.file_manager.project_root(project_name)
         return self.file_manager.read_json(project_root / "costs.json", default={"total_cost": 0.0, "breakdown": {}})
 
     def save_costs(self, project_name: str) -> None:
-        project_root = self.root / "workspace" / project_name
+        project_root = self.file_manager.project_root(project_name)
         self.file_manager.write_json(project_root / "costs.json", self.context.cost_tracker.summary())
 
     def _find_module_spec(self, final_spec: dict[str, Any], module_name: str) -> dict[str, Any]:

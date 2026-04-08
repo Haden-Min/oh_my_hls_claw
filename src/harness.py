@@ -46,6 +46,34 @@ class HarnessLoop:
         self.logger.info("[Harness] max iterations reached")
         return response_a
 
+    async def run_from_agent_a_response(self, initial_response_a: AgentMessage) -> AgentMessage:
+        response_a = initial_response_a
+        for iteration in range(self.max_iterations):
+            if self.progress_callback:
+                self.progress_callback(f"Harness iteration {iteration + 1}/{self.max_iterations}: {self.agent_b.name}")
+            response_b = await self.agent_b.send(response_a)
+            self.logger.info("[Harness] %s feedback iteration %s", self.agent_b.name, iteration + 1)
+            if self.convergence_checker(response_b, iteration):
+                self.logger.info("[Harness] converged at iteration %s", iteration + 1)
+                return response_a if self.return_agent_a_on_agent_b_convergence else response_b
+
+            if iteration == self.max_iterations - 1:
+                break
+
+            if self.progress_callback:
+                self.progress_callback(f"Harness iteration {iteration + 2}/{self.max_iterations}: {self.agent_a.name}")
+            response_a = await self.agent_a.send(response_b)
+            self.logger.info("[Harness] %s iteration %s", self.agent_a.name, iteration + 2)
+            if self.convergence_checker(response_a, iteration + 1):
+                self.logger.info("[Harness] converged at iteration %s", iteration + 2)
+                return response_a
+
+        self.logger.info("[Harness] max iterations reached")
+        return response_a
+
     @staticmethod
     def _default_convergence(message: AgentMessage, iteration: int) -> bool:
+        score = message.metadata.get("score")
+        if isinstance(score, (int, float)):
+            return score >= 100
         return bool(message.metadata.get("approved", False))

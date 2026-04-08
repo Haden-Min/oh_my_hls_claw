@@ -13,10 +13,13 @@ class FileManager:
         self.root.mkdir(parents=True, exist_ok=True)
 
     def ensure_project(self, project_name: str) -> Path:
-        project_root = self.root / project_name
+        project_root = self.project_root(project_name)
         for name in ("spec", "rtl", "tb", "sim", "docs", "onboard", "logs"):
             (project_root / name).mkdir(parents=True, exist_ok=True)
         return project_root
+
+    def project_root(self, project_name: str) -> Path:
+        return self.root / "workspace" / project_name
 
     def read_text(self, path: str | Path, default: str = "") -> str:
         target = Path(path)
