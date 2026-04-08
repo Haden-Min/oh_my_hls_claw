@@ -1,26 +1,37 @@
 <svg width="1200" height="360" viewBox="0 0 1200 360" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="1200" height="360" rx="32" fill="#0E1A24"/>
-  <rect x="36" y="36" width="1128" height="288" rx="24" fill="url(#bg)"/>
-  <circle cx="152" cy="180" r="72" fill="#F59E0B"/>
-  <circle cx="152" cy="180" r="46" fill="#0E1A24"/>
-  <path d="M118 150C132 128 160 120 182 132C203 143 211 170 201 193C189 220 157 234 130 222" stroke="#FFF7ED" stroke-width="14" stroke-linecap="round"/>
-  <path d="M204 220L246 258" stroke="#FB7185" stroke-width="16" stroke-linecap="round"/>
-  <text x="298" y="146" fill="#F8FAFC" font-family="Segoe UI, Arial, sans-serif" font-size="52" font-weight="700">Oh_My_HLS_Claw</text>
-  <text x="300" y="196" fill="#C7D2FE" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="600">Natural language in. Verilog RTL out.</text>
-  <text x="300" y="236" fill="#CBD5E1" font-family="Segoe UI, Arial, sans-serif" font-size="21">Multi-agent planning, RTL generation, verification, docs, and FPGA onboarding.</text>
-  <g opacity="0.95">
-    <rect x="883" y="78" width="192" height="54" rx="14" fill="#0F172A" stroke="#67E8F9" stroke-width="2"/>
-    <text x="979" y="112" text-anchor="middle" fill="#67E8F9" font-family="Consolas, monospace" font-size="20">planner</text>
-    <rect x="836" y="152" width="240" height="54" rx="14" fill="#111827" stroke="#A78BFA" stroke-width="2"/>
-    <text x="956" y="186" text-anchor="middle" fill="#DDD6FE" font-family="Consolas, monospace" font-size="20">rtl_designer</text>
-    <rect x="884" y="226" width="190" height="54" rx="14" fill="#0F172A" stroke="#34D399" stroke-width="2"/>
-    <text x="979" y="260" text-anchor="middle" fill="#A7F3D0" font-family="Consolas, monospace" font-size="20">verifier</text>
+  <rect width="1200" height="360" rx="32" fill="#0B1420"/>
+  <rect x="32" y="32" width="1136" height="296" rx="26" fill="url(#bg)" stroke="#203246"/>
+
+  <g transform="translate(84 74)">
+    <circle cx="86" cy="106" r="78" fill="#F59E0B"/>
+    <circle cx="86" cy="106" r="48" fill="#0B1420"/>
+    <path d="M48 82C61 57 90 47 117 58C142 69 154 98 145 124C136 151 109 170 77 169" stroke="#FFF7ED" stroke-width="16" stroke-linecap="round"/>
+    <path d="M140 154L190 205" stroke="#FB7185" stroke-width="18" stroke-linecap="round"/>
   </g>
+
+  <text x="340" y="132" fill="#F8FAFC" font-family="Segoe UI, Arial, sans-serif" font-size="54" font-weight="700">Oh_My_HLS_Claw</text>
+  <text x="340" y="182" fill="#C7D2FE" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="600">Natural language in. Verilog RTL out.</text>
+  <text x="340" y="220" fill="#CBD5E1" font-family="Segoe UI, Arial, sans-serif" font-size="22">Multi-agent planning, RTL generation, verification, docs, and FPGA onboarding.</text>
+
+  <g opacity="0.98">
+    <rect x="340" y="252" width="150" height="38" rx="12" fill="#12263A" stroke="#67E8F9"/>
+    <text x="415" y="276" text-anchor="middle" fill="#67E8F9" font-family="Consolas, monospace" font-size="18">planner</text>
+
+    <rect x="510" y="252" width="176" height="38" rx="12" fill="#131B33" stroke="#A78BFA"/>
+    <text x="598" y="276" text-anchor="middle" fill="#DDD6FE" font-family="Consolas, monospace" font-size="18">rtl_designer</text>
+
+    <rect x="706" y="252" width="154" height="38" rx="12" fill="#11241F" stroke="#34D399"/>
+    <text x="783" y="276" text-anchor="middle" fill="#A7F3D0" font-family="Consolas, monospace" font-size="18">verifier</text>
+
+    <rect x="880" y="252" width="154" height="38" rx="12" fill="#2B1832" stroke="#F472B6"/>
+    <text x="957" y="276" text-anchor="middle" fill="#F9A8D4" font-family="Consolas, monospace" font-size="18">onboarder</text>
+  </g>
+
   <defs>
-    <linearGradient id="bg" x1="36" y1="36" x2="1164" y2="324" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#12263A"/>
-      <stop offset="0.45" stop-color="#0F172A"/>
-      <stop offset="1" stop-color="#1E293B"/>
+    <linearGradient id="bg" x1="32" y1="32" x2="1168" y2="328" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#102235"/>
+      <stop offset="0.5" stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#162538"/>
     </linearGradient>
   </defs>
 </svg>

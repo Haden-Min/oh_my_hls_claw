@@ -17,6 +17,14 @@ Oh_My_HLS_Claw is a Python-based orchestration system that turns a design reques
 
 It is built around a set of specialized sub-agents that talk to each other through structured messages and harness loops instead of acting like one giant prompt blob.
 
+Recent upgrades in the current runtime:
+
+- stricter 100-point harness loops with up to 15 refinement rounds
+- stronger manager-side step normalization so one module is not redundantly assigned three times
+- generated outputs consistently landing under `workspace/<project_name>/`
+- live CLI progress with elapsed time, cleaner spacing, and easier-to-scan status output
+- a built-in `clean` command for removing generated project artifacts safely
+
 ## Why It Exists
 
 Typical HLS tools stop at C/C++ to RTL conversion.
@@ -38,10 +46,10 @@ It is especially useful if you want an agentic flow that can:
 
 This project is shaped by two strong influences:
 
-- GSD-flavored agentic workflows: keep momentum, avoid ceremony, move the artifact forward
-- Karpathy-style coding discipline: think before acting, keep things simple, make surgical changes, and define success criteria up front
+- [gsd-build/gsd-2](https://github.com/gsd-build/gsd-2): agentic momentum, low ceremony, artifact-first execution
+- [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills): think-before-acting discipline, simplicity, surgical edits, and explicit success criteria
 
-The second influence is directly reflected in the prompt design style inspired by [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills).
+Those influences show up most clearly in the harness design, the stricter manager/verifier prompts, and the runtime's bias toward moving one concrete project artifact forward at a time.
 
 ## System Architecture
 
@@ -135,6 +143,13 @@ python -m src.main init
 python -m src.main new --desc "8-bit ALU supporting ADD, SUB, AND, OR, XOR"
 ```
 
+### 6. Clean old generated outputs when you want a fresh run
+
+```bash
+python -m src.main clean --project alu8_basic
+python -m src.main clean --all
+```
+
 ## Example `init` Flow
 
 This is the kind of interactive setup flow you should expect:
@@ -165,6 +180,8 @@ python -m src.main new --ref examples/alu.py
 python -m src.main resume --project my_project
 python -m src.main status --project my_project
 python -m src.main cost --project my_project
+python -m src.main clean --project my_project
+python -m src.main clean --all
 ```
 
 ## Project Layout
@@ -266,9 +283,9 @@ The system is split into specialized agents instead of one monolithic generator.
 | Agent | What It Does | Prompt File |
 |------|------|------|
 | Planner | Turns raw intent into an architecture spec and design steps | `config/prompts/planner.md` |
-| Manager | Coordinates project state, step readiness, and completion | `config/prompts/manager.md` |
+| Manager | Scores spec quality, normalizes execution steps, removes redundant work, and coordinates project state | `config/prompts/manager.md` |
 | RTL Designer | Produces synthesizable Verilog-2001 | `config/prompts/rtl_designer.md` |
-| Verifier | Writes testbenches, reviews RTL, and issues pass/fail verdicts | `config/prompts/verifier.md` |
+| Verifier | Scores RTL/testbench quality, writes testbenches, reviews RTL, and blocks convergence until the design reaches the target bar | `config/prompts/verifier.md` |
 | Guide Writer | Produces step docs and final project writeups | `config/prompts/guide_writer.md` |
 | Onboarder | Emits constraints, wrappers, and build/onboarding assets | `config/prompts/onboarder.md` |
 
@@ -286,12 +303,13 @@ If you want to navigate the codebase quickly, start here:
 
 - `src/main.py`: CLI entrypoint
 - `src/orchestrator.py`: end-to-end project flow
-- `src/harness.py`: agent-to-agent refinement loop
+- `src/harness.py`: score-based agent-to-agent refinement loop
 - `src/llm/router.py`: provider/model routing
 - `src/sim/icarus_runner.py`: Icarus simulation backend
 - `src/sim/vivado_runner.py`: Vivado simulation backend
 - `src/utils/checkpoint.py`: approval flow
-- `src/utils/file_manager.py`: file persistence
+- `src/utils/file_manager.py`: file persistence and workspace layout
+- `src/utils/console.py`: progress UI, spinner, timing, and output formatting
 
 ## Verification Status
 
