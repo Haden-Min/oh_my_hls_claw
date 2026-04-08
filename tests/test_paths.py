@@ -5,6 +5,7 @@ from pathlib import Path
 import shutil
 import uuid
 import asyncio
+from unittest import mock
 
 if "yaml" not in sys.modules:
     sys.modules["yaml"] = types.SimpleNamespace(safe_load=lambda *_args, **_kwargs: {}, safe_dump=lambda *_args, **_kwargs: None)
@@ -14,6 +15,7 @@ from src.llm.openai_client import OpenAIClient
 from src.utils.checkpoint import CheckpointManager
 from src.utils.file_manager import FileManager
 from src.orchestrator import Orchestrator
+from src import main as main_module
 
 
 class PathTests(unittest.TestCase):
@@ -122,6 +124,44 @@ class PathTests(unittest.TestCase):
         self.assertEqual(orchestrator._summarize_project_status({"steps": [{"status": "completed"}]}), "completed")
         self.assertEqual(orchestrator._summarize_project_status({"steps": [{"status": "failed"}, {"status": "pending"}]}), "failed")
         self.assertEqual(orchestrator._summarize_project_status({"steps": [{"status": "completed"}, {"status": "pending"}]}), "in_progress")
+
+    def test_audit_returns_first_incomplete_step(self):
+        orchestrator = Orchestrator.__new__(Orchestrator)
+        project_root = self.temp_root / "workspace" / "demo"
+        (project_root / "spec").mkdir(parents=True, exist_ok=True)
+        (project_root / "spec" / "final_spec.json").write_text("{}", encoding="utf-8")
+        project_state = {
+            "steps": [
+                {"step": 1, "step_id": "step_01_a", "module": "a", "status": "completed", "sim_result": "PASS", "rtl_file": __file__, "tb_file": __file__, "sim_log_file": __file__, "doc_file": __file__},
+                {"step": 2, "step_id": "step_02_b", "module": "b", "status": "pending", "sim_result": None, "rtl_file": None, "tb_file": None, "sim_log_file": None, "doc_file": None},
+            ]
+        }
+
+        audit = orchestrator._audit_project_state(project_root, project_state)
+
+        self.assertFalse(audit["ok"])
+        self.assertEqual(audit["step"], 2)
+        self.assertEqual(audit["module"], "b")
+
+    def test_reset_step_and_dependents_rewinds_downstream_steps(self):
+        orchestrator = Orchestrator.__new__(Orchestrator)
+        project_state = {
+            "total_steps": 3,
+            "steps": [
+                {"step": 1, "step_id": "step_01_alu", "module": "alu", "status": "completed", "dependencies": [], "rtl_file": "a", "tb_file": "a", "sim_result": "PASS", "sim_log_file": "a", "doc_file": "a", "elapsed_seconds": 1.0},
+                {"step": 2, "step_id": "step_02_regfile", "module": "register_file", "status": "failed", "dependencies": [], "rtl_file": "b", "tb_file": "b", "sim_result": "FAIL", "sim_log_file": "b", "doc_file": "b", "elapsed_seconds": 2.0, "error": "boom"},
+                {"step": 3, "step_id": "step_03_top", "module": "cpu_top", "status": "completed", "dependencies": [2], "rtl_file": "c", "tb_file": "c", "sim_result": "PASS", "sim_log_file": "c", "doc_file": "c", "elapsed_seconds": 3.0},
+            ],
+        }
+
+        orchestrator._reset_step_and_dependents(project_state, 2, "step_02_regfile", "register_file")
+
+        self.assertEqual(project_state["current_step"], 2)
+        self.assertEqual(project_state["steps"][1]["status"], "pending")
+        self.assertIsNone(project_state["steps"][1]["rtl_file"])
+        self.assertIsNone(project_state["steps"][1]["error"])
+        self.assertEqual(project_state["steps"][2]["status"], "pending")
+        self.assertIsNone(project_state["steps"][2]["tb_file"])
 
     def test_repair_loop_feeds_sim_log_back_to_rtl_designer(self):
         class DummyConsole:
@@ -333,6 +373,41 @@ class PathTests(unittest.TestCase):
         client.client = FakeHttpClient()
         asyncio.run(client.chat("sys", [{"role": "user", "content": "hi"}], temperature=0.7))
         self.assertEqual(captured["json"]["temperature"], 0.7)
+
+    def test_start_new_project_prints_not_done_panel_for_incomplete_runs(self):
+        printed = []
+
+        class FakeProgressConsole:
+            def __init__(self, _console):
+                pass
+
+            def input(self, _message):
+                return "unused"
+
+            def print(self, panel):
+                printed.append(panel)
+
+        class FakeOrchestrator:
+            def __init__(self, _root):
+                self.context = types.SimpleNamespace(checkpoint_manager=types.SimpleNamespace(auto_approve=False))
+
+            async def run_project(self, _user_input, project_name=None, board=None):
+                return {
+                    "project_name": project_name or "demo",
+                    "status": "failed",
+                    "final_audit": {"step": 2, "module": "register_file", "reason": "simulation result is COMPILE_ERROR"},
+                }
+
+            def save_costs(self, _project_name):
+                return None
+
+        args = types.SimpleNamespace(desc="demo", ref=None, project="cpu", board=None, approve_all=False)
+        with mock.patch.object(main_module, "ProgressConsole", FakeProgressConsole), mock.patch("src.orchestrator.Orchestrator", FakeOrchestrator):
+            asyncio.run(main_module.start_new_project(args))
+
+        rendered = str(printed[0])
+        self.assertIn("Not Done", rendered)
+        self.assertIn("Blocked at step 2 (register_file)", rendered)
 
 
 if __name__ == "__main__":

@@ -55,7 +55,20 @@ async def start_new_project(args: argparse.Namespace) -> None:
         user_input = progress_console.input("Describe the digital system to design: ").strip()
     result = await orchestrator.run_project(user_input, project_name=args.project, board=args.board)
     orchestrator.save_costs(result["project_name"])
-    progress_console.print(Panel(f"Project completed: {result['project_name']}", title="Done"))
+    status = result.get("status", "unknown")
+    if status == "completed":
+        progress_console.print(Panel(f"Project completed: {result['project_name']}", title="Done"))
+        return
+
+    audit = result.get("final_audit", {})
+    reason = audit.get("reason") or result.get("error") or "Project did not reach a completed state."
+    problem_step = audit.get("step")
+    problem_module = audit.get("module")
+    detail = f"Project status: {status}"
+    if problem_step is not None and problem_module:
+        detail += f"\nBlocked at step {problem_step} ({problem_module})"
+    detail += f"\nReason: {reason}"
+    progress_console.print(Panel(detail, title="Not Done"))
 
 
 async def resume_project(args: argparse.Namespace) -> None:

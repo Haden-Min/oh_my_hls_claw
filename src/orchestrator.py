@@ -131,26 +131,39 @@ class Orchestrator:
         project_state = self._initialize_project_state(resolved_name, final_spec, board)
         self.file_manager.write_json(project_root / "project_state.json", project_state)
         self.file_manager.write_json(project_root / "spec" / "final_spec.json", final_spec)
+        max_loopbacks = int(self.settings["system"].get("project_loopback_max_rounds", 3))
+        loopback_count = 0
 
-        while ready_steps := self.get_ready_steps(project_state):
-            self.context.console.status(f"Ready steps: {', '.join(step['module'] for step in ready_steps)}")
-            results = await self.run_parallel_steps(project_state, ready_steps, rtl_designer, verifier, guide_writer, project_root, final_spec)
-            for result in results:
-                self._apply_step_result(project_state, result)
-            self.file_manager.write_json(project_root / "project_state.json", project_state)
-            if any(step["status"] == "failed" for step in project_state["steps"]):
+        while True:
+            while ready_steps := self.get_ready_steps(project_state):
+                self.context.console.status(f"Ready steps: {', '.join(step['module'] for step in ready_steps)}")
+                results = await self.run_parallel_steps(project_state, ready_steps, rtl_designer, verifier, guide_writer, project_root, final_spec)
+                for result in results:
+                    self._apply_step_result(project_state, result)
+                self.file_manager.write_json(project_root / "project_state.json", project_state)
+
+            audit = self._audit_project_state(project_root, project_state)
+            project_state["final_audit"] = audit
+            project_state["elapsed_seconds"] = round(time.perf_counter() - project_started_at, 3)
+
+            if audit["ok"]:
                 break
 
-        final_status = self._summarize_project_status(project_state)
-        project_state["status"] = final_status
-        project_state["elapsed_seconds"] = round(time.perf_counter() - project_started_at, 3)
-        self.file_manager.write_json(project_root / "project_state.json", project_state)
+            if loopback_count >= max_loopbacks:
+                project_state["status"] = "failed"
+                self.file_manager.write_json(project_root / "project_state.json", project_state)
+                self.context.console.status(
+                    f"Project {resolved_name} ended with status failed in {self.context.console.format_duration(project_state['elapsed_seconds'])}"
+                )
+                return project_state
 
-        if final_status != "completed":
             self.context.console.status(
-                f"Project {resolved_name} ended with status {final_status} in {self.context.console.format_duration(project_state['elapsed_seconds'])}"
+                f"Audit found issue in step {audit['step']} ({audit['module']}): {audit['reason']}. Looping back."
             )
-            return project_state
+            self._reset_step_and_dependents(project_state, audit["step"], audit["step_id"], audit["module"])
+            loopback_count += 1
+            project_state["status"] = "in_progress"
+            self.file_manager.write_json(project_root / "project_state.json", project_state)
 
         all_rtl = self.get_all_rtl_files(project_state)
         self.context.console.status("Generating onboarding assets")
@@ -166,6 +179,8 @@ class Orchestrator:
 
         project_state["current_step"] = project_state["total_steps"]
         project_state["status"] = "completed"
+        project_state["elapsed_seconds"] = round(time.perf_counter() - project_started_at, 3)
+        project_state["final_audit"] = {"ok": True}
         self.file_manager.write_json(project_root / "project_state.json", project_state)
 
         self.context.console.status("Writing final project documentation")
@@ -175,6 +190,7 @@ class Orchestrator:
             )
         self.file_manager.write_text(project_root / "docs" / "project_report.md", project_doc.artifacts.get("document", project_doc.content))
 
+        project_state["elapsed_seconds"] = round(time.perf_counter() - project_started_at, 3)
         self.file_manager.write_json(project_root / "project_state.json", project_state)
         self.context.console.status(
             f"Project completed: {resolved_name} in {self.context.console.format_duration(project_state['elapsed_seconds'])}"
@@ -195,7 +211,11 @@ class Orchestrator:
 
         async def run_with_limit(step: dict[str, Any]) -> dict[str, Any]:
             async with semaphore:
-                return await self.run_single_step(project_state, step, rtl_designer, verifier, guide_writer, project_root, final_spec)
+                try:
+                    return await self.run_single_step(project_state, step, rtl_designer, verifier, guide_writer, project_root, final_spec)
+                except Exception as exc:  # pragma: no cover - defensive runtime safety
+                    self.logger.exception("[StepFailure] %s failed unexpectedly", step["module"])
+                    return self._build_failed_step_result(step, exc)
 
         return await asyncio.gather(*[run_with_limit(step) for step in ready_steps])
 
@@ -407,7 +427,7 @@ class Orchestrator:
         for step in project_state["steps"]:
             if step["step"] == result["step"]:
                 step.update(result)
-        pending = [step for step in project_state["steps"] if step["status"] != "completed"]
+        pending = [step for step in project_state["steps"] if step["status"] == "pending"]
         project_state["current_step"] = pending[0]["step"] if pending else project_state["total_steps"]
 
     def get_all_rtl_files(self, project_state: dict[str, Any]) -> list[str]:
@@ -564,6 +584,88 @@ class Orchestrator:
         if statuses and all(status == "completed" for status in statuses):
             return "completed"
         return "in_progress"
+
+    def _audit_project_state(self, project_root: Path, project_state: dict[str, Any]) -> dict[str, Any]:
+        for step in sorted(project_state["steps"], key=lambda item: item["step"]):
+            if step["status"] != "completed":
+                return {
+                    "ok": False,
+                    "step": step["step"],
+                    "step_id": step["step_id"],
+                    "module": step["module"],
+                    "reason": f"step status is {step['status']}",
+                }
+            if step.get("sim_result") != "PASS":
+                return {
+                    "ok": False,
+                    "step": step["step"],
+                    "step_id": step["step_id"],
+                    "module": step["module"],
+                    "reason": f"simulation result is {step.get('sim_result')}",
+                }
+            for key in ("rtl_file", "tb_file", "sim_log_file", "doc_file"):
+                value = step.get(key)
+                if not value or not Path(value).exists():
+                    return {
+                        "ok": False,
+                        "step": step["step"],
+                        "step_id": step["step_id"],
+                        "module": step["module"],
+                        "reason": f"missing artifact {key}",
+                    }
+        if not (project_root / "spec" / "final_spec.json").exists():
+            return {"ok": False, "step": None, "step_id": None, "module": "spec", "reason": "missing final spec"}
+        return {"ok": True}
+
+    def _reset_step_and_dependents(self, project_state: dict[str, Any], step_number: int, step_id: str, module: str) -> None:
+        targets: set[Any] = {step_number, step_id, module}
+        affected_steps: set[int] = set()
+        changed = True
+        while changed:
+            changed = False
+            for step in project_state["steps"]:
+                if step["step"] in affected_steps:
+                    continue
+                dependencies = step.get("dependencies", [])
+                if step["step"] == step_number or step["step_id"] == step_id or step["module"] == module or any(dep in targets for dep in dependencies):
+                    affected_steps.add(step["step"])
+                    targets.update({step["step"], step["step_id"], step["module"]})
+                    changed = True
+
+        for step in project_state["steps"]:
+            if step["step"] not in affected_steps:
+                continue
+            step.update(
+                {
+                    "status": "pending",
+                    "rtl_file": None,
+                    "tb_file": None,
+                    "sim_result": None,
+                    "sim_log_file": None,
+                    "doc_file": None,
+                    "elapsed_seconds": None,
+                    "error": None,
+                }
+            )
+
+        pending = [step for step in sorted(project_state["steps"], key=lambda item: item["step"]) if step["status"] == "pending"]
+        project_state["current_step"] = pending[0]["step"] if pending else project_state["total_steps"]
+
+    @staticmethod
+    def _build_failed_step_result(step: dict[str, Any], exc: Exception) -> dict[str, Any]:
+        return {
+            "step": step["step"],
+            "step_id": step["step_id"],
+            "module": step["module"],
+            "rtl_file": step.get("rtl_file"),
+            "tb_file": step.get("tb_file"),
+            "sim_result": "EXCEPTION",
+            "sim_log_file": None,
+            "doc_file": None,
+            "elapsed_seconds": None,
+            "status": "failed",
+            "error": f"{type(exc).__name__}: {exc}",
+        }
 
     @staticmethod
     def _slugify(text: str) -> str:
