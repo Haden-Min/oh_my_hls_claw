@@ -226,6 +226,7 @@ class PathTests(unittest.TestCase):
                 step=step,
                 step_spec={"name": "demo"},
                 final_spec={"modules": [{"name": "demo"}]},
+                project_state={"steps": []},
                 project_root=self.temp_root / "workspace" / "demo_project",
                 rtl_designer=rtl_designer,
                 verifier=verifier,
@@ -303,6 +304,73 @@ class PathTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "completed")
         self.assertEqual(guide_writer.messages[0].artifacts["tb"], "module tb_demo; endmodule")
+
+    def test_repair_loop_simulates_with_dependency_rtl_files(self):
+        class DummyConsole:
+            def status(self, _message):
+                pass
+
+            class _Spinner:
+                def __enter__(self):
+                    return None
+
+                def __exit__(self, exc_type, exc, tb):
+                    return False
+
+            def spinner(self, _message):
+                return self._Spinner()
+
+        class FakeRTLDesigner:
+            def __init__(self):
+                self.name = "rtl_designer"
+
+            async def send(self, _message):
+                return AgentMessage(role="rtl_designer", content="draft", artifacts={"verilog": "module cpu_top; alu u_alu(); endmodule"})
+
+        class FakeVerifier:
+            def __init__(self):
+                self.name = "verifier"
+
+            async def send(self, _message):
+                return AgentMessage(
+                    role="verifier",
+                    content="review",
+                    artifacts={"testbench": "module tb_cpu_top; cpu_top dut(); endmodule"},
+                    metadata={"approved": True, "score": 100},
+                )
+
+        orchestrator = Orchestrator.__new__(Orchestrator)
+        orchestrator.settings = {"system": {"harness_max_iterations": 1}}
+        orchestrator.context = types.SimpleNamespace(console=DummyConsole())
+        orchestrator.file_manager = FileManager(self.temp_root)
+
+        dependency_path = orchestrator.file_manager.write_text(
+            self.temp_root / "workspace" / "demo_project" / "rtl" / "alu.v",
+            "module alu; endmodule\n",
+        )
+        captured = {}
+
+        async def fake_simulate(_work_dir, rtl_files, _tb_file):
+            captured["rtl_files"] = rtl_files
+            return {"status": "PASS", "log": "FINAL PASS", "pass": True}
+
+        orchestrator._simulate = fake_simulate
+
+        asyncio.run(
+            orchestrator._run_step_with_repair_loop(
+                step={"step": 2, "step_id": "step_02_cpu_top", "module": "cpu_top", "dependencies": ["alu"]},
+                step_spec={"name": "cpu_top"},
+                final_spec={"modules": [{"name": "cpu_top"}]},
+                project_state={"steps": [{"step": 1, "step_id": "step_01_alu", "module": "alu", "status": "completed", "rtl_file": str(dependency_path)}]},
+                project_root=self.temp_root / "workspace" / "demo_project",
+                rtl_designer=FakeRTLDesigner(),
+                verifier=FakeVerifier(),
+                initial_rtl_result=AgentMessage(role="rtl_designer", content="draft", artifacts={"verilog": "module cpu_top; alu u_alu(); endmodule"}),
+            )
+        )
+
+        self.assertEqual(captured["rtl_files"][0], str(dependency_path))
+        self.assertTrue(captured["rtl_files"][-1].endswith("cpu_top.v"))
 
     def test_checkpoint_manager_can_auto_approve(self):
         class DummyLocale:

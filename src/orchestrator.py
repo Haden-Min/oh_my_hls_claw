@@ -232,6 +232,9 @@ class Orchestrator:
         step_started_at = time.perf_counter()
         module_name = step["module"]
         step_spec = self._find_module_spec(final_spec, module_name)
+        dependency_rtl_files = self._collect_dependency_rtl_files(project_state, step)
+        dependency_rtl_sources = self._load_rtl_sources(dependency_rtl_files)
+        child_module_specs = self._collect_child_module_specs(final_spec, step)
         step["status"] = "in_progress"
         self.context.console.status(f"Step {step['step']}: starting module {module_name}")
         self.context.console.status(f"Generating RTL for {module_name}")
@@ -240,7 +243,14 @@ class Orchestrator:
                 AgentMessage(
                     role="manager",
                     content="Generate Verilog module from step spec.",
-                    artifacts={"step_spec": step, "module_spec": step_spec, "project_spec": final_spec},
+                    artifacts={
+                        "step_spec": step,
+                        "module_spec": step_spec,
+                        "project_spec": final_spec,
+                        "dependency_rtl_files": dependency_rtl_files,
+                        "dependency_rtl_sources": dependency_rtl_sources,
+                        "child_module_specs": child_module_specs,
+                    },
                     metadata={"step": step["step"], "step_id": step["step_id"], "module": module_name},
                 )
             )
@@ -248,6 +258,7 @@ class Orchestrator:
             step=step,
             step_spec=step_spec,
             final_spec=final_spec,
+            project_state=project_state,
             project_root=project_root,
             rtl_designer=rtl_designer,
             verifier=verifier,
@@ -286,6 +297,7 @@ class Orchestrator:
         step: dict[str, Any],
         step_spec: dict[str, Any],
         final_spec: dict[str, Any],
+        project_state: dict[str, Any],
         project_root: Path,
         rtl_designer: RTLDesignerAgent,
         verifier: VerifierAgent,
@@ -298,6 +310,9 @@ class Orchestrator:
         latest_sim_result: dict[str, object] = {"status": "FAIL", "log": "", "pass": False}
         rtl_path = project_root / "rtl" / f"{module_name}.v"
         tb_path = project_root / "tb" / f"tb_{module_name}.v"
+        dependency_rtl_files = self._collect_dependency_rtl_files(project_state, step)
+        dependency_rtl_sources = self._load_rtl_sources(dependency_rtl_files)
+        child_module_specs = self._collect_child_module_specs(final_spec, step)
 
         for attempt in range(1, max_attempts + 1):
             harness = HarnessLoop(
@@ -317,6 +332,11 @@ class Orchestrator:
                             "module_spec": step_spec,
                             "project_spec": final_spec,
                             "verilog": rtl_result.artifacts.get("verilog", ""),
+                            "dependency_rtl_files": dependency_rtl_files,
+                            "dependency_rtl_sources": dependency_rtl_sources,
+                            "child_module_specs": child_module_specs,
+                            "previous_sim_log": latest_sim_result.get("log", "") if attempt > 1 else "",
+                            "previous_sim_status": latest_sim_result.get("status", "") if attempt > 1 else "",
                         },
                         metadata={"step": step["step"], "step_id": step["step_id"], "module": module_name},
                     )
@@ -329,7 +349,11 @@ class Orchestrator:
 
             self.context.console.status(f"Running simulation for {module_name}")
             with self.context.console.spinner(f"Running simulator for {module_name}"):
-                latest_sim_result = await self._simulate(project_root / "sim" / module_name, [str(rtl_path)], str(tb_path))
+                latest_sim_result = await self._simulate(
+                    project_root / "sim" / module_name,
+                    [*dependency_rtl_files, str(rtl_path)],
+                    str(tb_path),
+                )
 
             if latest_sim_result["pass"]:
                 return verilog, latest_verify_result, latest_sim_result, rtl_path, tb_path
@@ -351,6 +375,9 @@ class Orchestrator:
                             "project_spec": final_spec,
                             "verilog": verilog,
                             "testbench": testbench,
+                            "dependency_rtl_files": dependency_rtl_files,
+                            "dependency_rtl_sources": dependency_rtl_sources,
+                            "child_module_specs": child_module_specs,
                             "sim_log": latest_sim_result.get("log", ""),
                             "sim_status": latest_sim_result.get("status", ""),
                             "code_review": latest_verify_result.content,
@@ -432,6 +459,60 @@ class Orchestrator:
 
     def get_all_rtl_files(self, project_state: dict[str, Any]) -> list[str]:
         return [step["rtl_file"] for step in project_state["steps"] if step["rtl_file"]]
+
+    def _collect_dependency_rtl_files(self, project_state: dict[str, Any], step: dict[str, Any]) -> list[str]:
+        available_by_module = {
+            item["module"]: item["rtl_file"]
+            for item in project_state.get("steps", [])
+            if item.get("status") == "completed" and item.get("rtl_file")
+        }
+        available_by_step = {
+            item["step"]: item["rtl_file"]
+            for item in project_state.get("steps", [])
+            if item.get("status") == "completed" and item.get("rtl_file")
+        }
+        available_by_step_id = {
+            item["step_id"]: item["rtl_file"]
+            for item in project_state.get("steps", [])
+            if item.get("status") == "completed" and item.get("rtl_file")
+        }
+
+        dependency_files: list[str] = []
+        seen: set[str] = set()
+        for dependency in step.get("dependencies", []):
+            rtl_file = None
+            if isinstance(dependency, int):
+                rtl_file = available_by_step.get(dependency)
+            elif isinstance(dependency, str):
+                rtl_file = available_by_module.get(dependency)
+                if rtl_file is None:
+                    rtl_file = available_by_step_id.get(dependency)
+                if rtl_file is None and dependency.isdigit():
+                    rtl_file = available_by_step.get(int(dependency))
+            if rtl_file and rtl_file not in seen:
+                seen.add(rtl_file)
+                dependency_files.append(rtl_file)
+        return dependency_files
+
+    def _load_rtl_sources(self, rtl_files: list[str]) -> dict[str, str]:
+        return {Path(path).name: self.file_manager.read_text(path) for path in rtl_files if path}
+
+    def _collect_child_module_specs(self, final_spec: dict[str, Any], step: dict[str, Any]) -> list[dict[str, Any]]:
+        module_name = step.get("module")
+        module_spec = self._find_module_spec(final_spec, module_name)
+        raw_children = module_spec.get("child_modules", step.get("child_modules", []))
+        child_names = self._coerce_list(raw_children)
+        child_specs: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for child_name in child_names:
+            if not isinstance(child_name, str) or child_name in seen:
+                continue
+            child_spec = self._find_module_spec(final_spec, child_name)
+            if child_spec.get("name") != child_name:
+                continue
+            seen.add(child_name)
+            child_specs.append(child_spec)
+        return child_specs
 
     def get_full_project_data(self, project_root: Path, project_state: dict[str, Any]) -> dict[str, Any]:
         return {
