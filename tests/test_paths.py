@@ -478,6 +478,26 @@ class PathTests(unittest.TestCase):
         asyncio.run(client.chat("sys", [{"role": "user", "content": "hi"}], temperature=0.7))
         self.assertEqual(captured["json"]["temperature"], 0.7)
 
+    def test_omrc_without_args_starts_interactive_agent(self):
+        self.assertTrue(main_module.should_start_agent([], "omrc"))
+        self.assertFalse(main_module.should_start_agent(["--help"], "omrc"))
+        self.assertFalse(main_module.should_start_agent([], "oh-my-rtl-claw"))
+
+    def test_omrc_first_run_defaults_to_setup_until_env_exists(self):
+        args = main_module.default_omrc_args(self.temp_root)
+        self.assertEqual(args.command, "setup")
+
+        (self.temp_root / ".env").write_text("OPENAI_USE_OAUTH_PROXY=true\n", encoding="utf-8")
+        args = main_module.default_omrc_args(self.temp_root)
+        self.assertEqual(args.command, "new")
+
+    def test_default_new_args_match_interactive_new_command(self):
+        args = main_module.default_new_args()
+        self.assertEqual(args.command, "new")
+        self.assertIsNone(args.desc)
+        self.assertIsNone(args.ref)
+        self.assertFalse(args.approve_all)
+
     def test_start_new_project_prints_not_done_panel_for_incomplete_runs(self):
         printed = []
 

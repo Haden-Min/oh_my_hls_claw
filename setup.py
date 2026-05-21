@@ -31,6 +31,7 @@ setup(
     entry_points={
         "console_scripts": [
             "oh-my-rtl-claw=oh_my_rtl_claw.main:main",
+            "omrc=oh_my_rtl_claw.main:main",
         ],
     },
 )

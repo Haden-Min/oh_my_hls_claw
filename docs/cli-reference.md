@@ -1,30 +1,54 @@
 # CLI Command Reference
 
 This file collects the commands currently exposed by `python -m oh_my_rtl_claw.main`.
-After package installation, the same parser is also exposed as `oh-my-rtl-claw`.
+After package installation, the same parser is exposed as `oh-my-rtl-claw`.
+The short agent launcher is `omrc`.
 
 ## Overview
 
 ```bash
 python -m oh_my_rtl_claw.main --help
 oh-my-rtl-claw --help
+omrc --help
 ```
 
 Available subcommands:
 
 - `init`
+- `setup`
 - `new`
 - `resume`
 - `status`
 - `cost`
 - `clean`
 
-## `init`
+## `omrc`
+
+Starts setup on first run, then starts the interactive CLI agent on later runs.
+
+```bash
+omrc
+```
+
+This is equivalent to running `oh-my-rtl-claw new` without `--desc` or `--ref`: it prompts for a design request, then launches the orchestrated planner, RTL designer, verifier, simulator, docs, and onboarding flow.
+If `.env` is not present yet, `omrc` runs setup first.
+
+You can also use `omrc` as the shorter command for any normal subcommand:
+
+```bash
+omrc init
+omrc setup
+omrc new --desc "8-bit ALU supporting ADD, SUB, AND, OR, XOR"
+omrc status --project my_project
+```
+
+## `init` / `setup`
 
 Interactive setup for language, model access, and simulator configuration.
 
 ```bash
 python -m oh_my_rtl_claw.main init
+omrc setup
 ```
 
 What it does:

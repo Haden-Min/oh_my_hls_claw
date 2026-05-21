@@ -137,12 +137,16 @@ Vivado CLI:
 
 ```bash
 python -m oh_my_rtl_claw.main init
+# after package installation:
+omrc setup
 ```
 
 ### 5. Start your first project
 
 ```bash
 python -m oh_my_rtl_claw.main new --desc "8-bit ALU supporting ADD, SUB, AND, OR, XOR"
+# or start setup on first run, then the interactive agent afterwards:
+omrc
 ```
 
 ### 6. Clean old generated outputs when you want a fresh run
@@ -185,6 +189,18 @@ python -m oh_my_rtl_claw.main cost --project my_project
 python -m oh_my_rtl_claw.main clean --project my_project
 python -m oh_my_rtl_claw.main clean --all
 ```
+
+After package installation, `omrc` is the short agent launcher:
+
+```bash
+omrc
+omrc init
+omrc setup
+omrc new --desc "8-bit RISC CPU, single cycle, 8 registers"
+omrc status --project my_project
+```
+
+On first run, `omrc` checks for `.env`. If setup has not been completed yet, it opens the same setup flow as `omrc setup`; after setup, `omrc` starts the interactive design agent.
 
 Full CLI command reference:
 - [docs/cli-reference.md](docs/cli-reference.md)

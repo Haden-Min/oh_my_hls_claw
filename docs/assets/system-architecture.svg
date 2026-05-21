@@ -1,59 +1,166 @@
-<svg width="1400" height="760" viewBox="0 0 1400 760" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="1400" height="760" rx="28" fill="#0B1220"/>
-  <text x="72" y="74" fill="#F8FAFC" font-family="Segoe UI, Arial, sans-serif" font-size="38" font-weight="700">Oh My RTL Claw System Architecture</text>
-  <text x="72" y="112" fill="#94A3B8" font-family="Segoe UI, Arial, sans-serif" font-size="20">Intent flows through planning, score-based review loops, RTL generation, simulation, docs, and onboarding.</text>
+<svg width="1400" height="820" viewBox="0 0 1400 820" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Oh My RTL Claw System Architecture</title>
+  <desc id="desc">A multi-agent RTL design orchestrator with planning, manager review, RTL design, verification, simulation repair loops, and workspace artifacts.</desc>
 
-  <rect x="70" y="170" width="220" height="96" rx="20" fill="#132238" stroke="#67E8F9" stroke-width="2"/>
-  <text x="180" y="210" text-anchor="middle" fill="#E0F2FE" font-family="Segoe UI, Arial, sans-serif" font-size="25" font-weight="700">User Intent</text>
-  <text x="180" y="238" text-anchor="middle" fill="#BAE6FD" font-family="Segoe UI, Arial, sans-serif" font-size="17">natural language or reference code</text>
+  <defs>
+    <linearGradient id="page" x1="0" y1="0" x2="1400" y2="820" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC"/>
+      <stop offset="0.55" stop-color="#EEF6FF"/>
+      <stop offset="1" stop-color="#F7F3FF"/>
+    </linearGradient>
+    <linearGradient id="core" x1="486" y1="214" x2="914" y2="592" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#172554"/>
+      <stop offset="0.55" stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#1E1B4B"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#0F172A" flood-opacity="0.14"/>
+    </filter>
+    <marker id="arrowIndigo" markerWidth="12" markerHeight="12" refX="9.5" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2 2L10 6L2 10" fill="none" stroke="#4F46E5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrowCyan" markerWidth="12" markerHeight="12" refX="9.5" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2 2L10 6L2 10" fill="none" stroke="#0891B2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="12" markerHeight="12" refX="9.5" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2 2L10 6L2 10" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrowAmber" markerWidth="12" markerHeight="12" refX="9.5" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2 2L10 6L2 10" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <style>
+      .title { font: 700 42px "Segoe UI", Arial, sans-serif; fill: #0F172A; }
+      .subtitle { font: 400 19px "Segoe UI", Arial, sans-serif; fill: #475569; }
+      .eyebrow { font: 700 13px "Segoe UI", Arial, sans-serif; letter-spacing: 1.5px; text-transform: uppercase; }
+      .cardTitle { font: 700 23px "Segoe UI", Arial, sans-serif; fill: #0F172A; }
+      .cardText { font: 400 15px "Segoe UI", Arial, sans-serif; fill: #475569; }
+      .coreTitle { font: 700 30px "Segoe UI", Arial, sans-serif; fill: #F8FAFC; }
+      .coreText { font: 500 16px "Segoe UI", Arial, sans-serif; fill: #C7D2FE; }
+      .mono { font: 600 14px Consolas, "SFMono-Regular", monospace; }
+      .label { font: 700 13px "Segoe UI", Arial, sans-serif; fill: #334155; }
+    </style>
+  </defs>
 
-  <rect x="372" y="170" width="220" height="96" rx="20" fill="#1E293B" stroke="#A78BFA" stroke-width="2"/>
-  <text x="482" y="210" text-anchor="middle" fill="#EDE9FE" font-family="Segoe UI, Arial, sans-serif" font-size="25" font-weight="700">Planner</text>
-  <text x="482" y="238" text-anchor="middle" fill="#DDD6FE" font-family="Segoe UI, Arial, sans-serif" font-size="17">draft architecture spec</text>
+  <rect width="1400" height="820" rx="30" fill="url(#page)"/>
 
-  <rect x="674" y="170" width="230" height="96" rx="20" fill="#1F2937" stroke="#F59E0B" stroke-width="2"/>
-  <text x="789" y="210" text-anchor="middle" fill="#FEF3C7" font-family="Segoe UI, Arial, sans-serif" font-size="25" font-weight="700">Manager</text>
-  <text x="789" y="238" text-anchor="middle" fill="#FDE68A" font-family="Segoe UI, Arial, sans-serif" font-size="17">scores, critiques, normalizes plan</text>
+  <g opacity="0.36">
+    <path d="M80 160H1320M80 260H1320M80 360H1320M80 460H1320M80 560H1320M80 660H1320" stroke="#CBD5E1" stroke-width="1"/>
+    <path d="M180 130V720M360 130V720M540 130V720M720 130V720M900 130V720M1080 130V720M1260 130V720" stroke="#CBD5E1" stroke-width="1"/>
+  </g>
 
-  <rect x="1002" y="170" width="270" height="96" rx="20" fill="#14213A" stroke="#34D399" stroke-width="2"/>
-  <text x="1137" y="210" text-anchor="middle" fill="#DCFCE7" font-family="Segoe UI, Arial, sans-serif" font-size="25" font-weight="700">Workspace</text>
-  <text x="1137" y="238" text-anchor="middle" fill="#A7F3D0" font-family="Segoe UI, Arial, sans-serif" font-size="17">spec / rtl / tb / sim / docs / onboard</text>
+  <text x="80" y="72" class="title">Oh My RTL Claw System Architecture</text>
+  <text x="80" y="108" class="subtitle">A central orchestrator coordinates specialist agents, score gates, simulation feedback, and persisted RTL project artifacts.</text>
 
-  <rect x="246" y="352" width="340" height="122" rx="22" fill="#111827" stroke="#38BDF8" stroke-width="2"/>
-  <text x="416" y="398" text-anchor="middle" fill="#E0F2FE" font-family="Segoe UI, Arial, sans-serif" font-size="29" font-weight="700">RTL Designer</text>
-  <text x="416" y="430" text-anchor="middle" fill="#BAE6FD" font-family="Segoe UI, Arial, sans-serif" font-size="18">synthesizable Verilog-2001</text>
-  <text x="416" y="456" text-anchor="middle" fill="#7DD3FC" font-family="Segoe UI, Arial, sans-serif" font-size="16">implementation revisions until the review score is perfect</text>
+  <g transform="translate(80 154)" filter="url(#softShadow)">
+    <rect width="276" height="142" rx="18" fill="#FFFFFF" stroke="#BAE6FD"/>
+    <text x="24" y="32" class="eyebrow" fill="#0891B2">Input</text>
+    <text x="24" y="68" class="cardTitle">Design Intent</text>
+    <text x="24" y="98" class="cardText">Natural language request</text>
+    <text x="24" y="122" class="cardText">or reference software code</text>
+  </g>
 
-  <rect x="814" y="352" width="340" height="122" rx="22" fill="#0F172A" stroke="#4ADE80" stroke-width="2"/>
-  <text x="984" y="398" text-anchor="middle" fill="#DCFCE7" font-family="Segoe UI, Arial, sans-serif" font-size="29" font-weight="700">Verifier</text>
-  <text x="984" y="430" text-anchor="middle" fill="#BBF7D0" font-family="Segoe UI, Arial, sans-serif" font-size="18">testbench + review + score</text>
-  <text x="984" y="456" text-anchor="middle" fill="#86EFAC" font-family="Segoe UI, Arial, sans-serif" font-size="16">100-point gate before simulation and documentation</text>
+  <g transform="translate(410 154)" filter="url(#softShadow)">
+    <rect width="250" height="142" rx="18" fill="#FFFFFF" stroke="#C4B5FD"/>
+    <text x="24" y="32" class="eyebrow" fill="#4F46E5">Planner</text>
+    <text x="24" y="68" class="cardTitle">Architecture Spec</text>
+    <text x="24" y="98" class="cardText">Modules, ports, constraints,</text>
+    <text x="24" y="122" class="cardText">and execution steps</text>
+  </g>
 
-  <rect x="156" y="582" width="300" height="98" rx="22" fill="#1E1B4B" stroke="#C084FC" stroke-width="2"/>
-  <text x="306" y="622" text-anchor="middle" fill="#F5D0FE" font-family="Segoe UI, Arial, sans-serif" font-size="25" font-weight="700">Guide Writer</text>
-  <text x="306" y="650" text-anchor="middle" fill="#DDD6FE" font-family="Segoe UI, Arial, sans-serif" font-size="17">step reports and final docs</text>
+  <g transform="translate(740 154)" filter="url(#softShadow)">
+    <rect width="250" height="142" rx="18" fill="#FFFFFF" stroke="#FDE68A"/>
+    <text x="24" y="32" class="eyebrow" fill="#D97706">Manager</text>
+    <text x="24" y="68" class="cardTitle">Plan Review</text>
+    <text x="24" y="98" class="cardText">Scores quality, removes</text>
+    <text x="24" y="122" class="cardText">duplicates, orders modules</text>
+  </g>
 
-  <rect x="550" y="582" width="300" height="98" rx="22" fill="#14262A" stroke="#22D3EE" stroke-width="2"/>
-  <text x="700" y="622" text-anchor="middle" fill="#CFFAFE" font-family="Segoe UI, Arial, sans-serif" font-size="25" font-weight="700">CLI UX</text>
-  <text x="700" y="650" text-anchor="middle" fill="#A5F3FC" font-family="Segoe UI, Arial, sans-serif" font-size="17">timed progress, spinner, checkpoints, clean</text>
+  <g transform="translate(502 340)" filter="url(#softShadow)">
+    <rect width="396" height="214" rx="24" fill="url(#core)" stroke="#334155"/>
+    <text x="198" y="48" text-anchor="middle" class="coreTitle">Orchestrator Core</text>
+    <text x="198" y="80" text-anchor="middle" class="coreText">stateful project scheduler and harness coordinator</text>
+    <g transform="translate(34 112)">
+      <rect width="150" height="42" rx="10" fill="#1E293B" stroke="#60A5FA"/>
+      <text x="75" y="27" text-anchor="middle" class="mono" fill="#BFDBFE">project_state</text>
+      <rect x="178" width="150" height="42" rx="10" fill="#1E293B" stroke="#A78BFA"/>
+      <text x="253" y="27" text-anchor="middle" class="mono" fill="#DDD6FE">checkpoints</text>
+      <rect y="58" width="150" height="42" rx="10" fill="#1E293B" stroke="#67E8F9"/>
+      <text x="75" y="85" text-anchor="middle" class="mono" fill="#CFFAFE">parallel steps</text>
+      <rect x="178" y="58" width="150" height="42" rx="10" fill="#1E293B" stroke="#FBBF24"/>
+      <text x="253" y="85" text-anchor="middle" class="mono" fill="#FEF3C7">repair loops</text>
+    </g>
+  </g>
 
-  <rect x="944" y="582" width="300" height="98" rx="22" fill="#3F1D2E" stroke="#FB7185" stroke-width="2"/>
-  <text x="1094" y="622" text-anchor="middle" fill="#FFE4E6" font-family="Segoe UI, Arial, sans-serif" font-size="25" font-weight="700">Onboarder</text>
-  <text x="1094" y="650" text-anchor="middle" fill="#FDA4AF" font-family="Segoe UI, Arial, sans-serif" font-size="17">constraints, wrappers, build assets</text>
+  <g transform="translate(118 385)" filter="url(#softShadow)">
+    <rect width="286" height="118" rx="18" fill="#FFFFFF" stroke="#93C5FD"/>
+    <text x="24" y="32" class="eyebrow" fill="#2563EB">RTL Designer</text>
+    <text x="24" y="66" class="cardTitle">Verilog Modules</text>
+    <text x="24" y="94" class="cardText">Synthesizable RTL plus repair revisions</text>
+  </g>
 
-  <path d="M290 218H372" stroke="#7DD3FC" stroke-width="5" stroke-linecap="round"/>
-  <path d="M592 218H674" stroke="#C4B5FD" stroke-width="5" stroke-linecap="round"/>
-  <path d="M904 218H1002" stroke="#FDE68A" stroke-width="5" stroke-linecap="round"/>
+  <g transform="translate(996 385)" filter="url(#softShadow)">
+    <rect width="286" height="118" rx="18" fill="#FFFFFF" stroke="#86EFAC"/>
+    <text x="24" y="32" class="eyebrow" fill="#059669">Verifier</text>
+    <text x="24" y="66" class="cardTitle">Testbench Gate</text>
+    <text x="24" y="94" class="cardText">Review, score, and generated tests</text>
+  </g>
 
-  <path d="M789 266V316H416V352" stroke="#FBBF24" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M789 266V316H984V352" stroke="#FBBF24" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <g transform="translate(112 610)" filter="url(#softShadow)">
+    <rect width="272" height="100" rx="18" fill="#FFFFFF" stroke="#E9D5FF"/>
+    <text x="24" y="32" class="eyebrow" fill="#9333EA">Guide Writer</text>
+    <text x="24" y="66" class="cardTitle">Engineering Docs</text>
+  </g>
 
-  <path d="M586 413H814" stroke="#93C5FD" stroke-width="5" stroke-linecap="round"/>
-  <path d="M814 429H586" stroke="#86EFAC" stroke-width="5" stroke-linecap="round" stroke-dasharray="10 12"/>
-  <text x="700" y="394" text-anchor="middle" fill="#CBD5E1" font-family="Segoe UI, Arial, sans-serif" font-size="16">score-and-revise harness loop</text>
+  <g transform="translate(462 610)" filter="url(#softShadow)">
+    <rect width="272" height="100" rx="18" fill="#FFFFFF" stroke="#A7F3D0"/>
+    <text x="24" y="32" class="eyebrow" fill="#047857">Simulator</text>
+    <text x="24" y="66" class="cardTitle">Icarus or Vivado</text>
+  </g>
 
-  <path d="M416 474V536H306V582" stroke="#38BDF8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M984 474V536H1094V582" stroke="#4ADE80" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M984 474V536H1137V266" stroke="#34D399" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M416 474V536H700V582" stroke="#22D3EE" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <g transform="translate(812 610)" filter="url(#softShadow)">
+    <rect width="272" height="100" rx="18" fill="#FFFFFF" stroke="#FDA4AF"/>
+    <text x="24" y="32" class="eyebrow" fill="#E11D48">Onboarder</text>
+    <text x="24" y="66" class="cardTitle">FPGA Assets</text>
+  </g>
+
+  <g transform="translate(1114 134)" filter="url(#softShadow)">
+    <rect width="206" height="216" rx="18" fill="#0F172A" stroke="#334155"/>
+    <text x="24" y="36" class="eyebrow" fill="#67E8F9">Workspace</text>
+    <text x="24" y="70" fill="#F8FAFC" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">Artifacts</text>
+    <g class="mono" fill="#CBD5E1">
+      <text x="24" y="108">spec/final_spec.json</text>
+      <text x="24" y="132">rtl/*.v</text>
+      <text x="24" y="156">tb/tb_*.v</text>
+      <text x="24" y="180">sim/*/sim.log</text>
+      <text x="24" y="204">docs/*.md</text>
+    </g>
+  </g>
+
+  <path d="M356 225H410" stroke="#0891B2" stroke-width="3.5" stroke-linecap="round" marker-end="url(#arrowCyan)"/>
+  <path d="M660 225H740" stroke="#4F46E5" stroke-width="3.5" stroke-linecap="round" marker-end="url(#arrowIndigo)"/>
+  <path d="M990 225H1114" stroke="#D97706" stroke-width="3.5" stroke-linecap="round" marker-end="url(#arrowAmber)"/>
+  <path d="M865 296V318C865 332 898 324 898 340" stroke="#D97706" stroke-width="3.5" stroke-linecap="round" marker-end="url(#arrowAmber)"/>
+
+  <path d="M502 448H404" stroke="#2563EB" stroke-width="3.5" stroke-linecap="round" marker-end="url(#arrowIndigo)"/>
+  <path d="M404 424H502" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="8 10"/>
+  <path d="M898 448H996" stroke="#059669" stroke-width="3.5" stroke-linecap="round" marker-end="url(#arrowGreen)"/>
+  <path d="M996 424H898" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="8 10"/>
+
+  <path d="M261 503C261 558 248 570 248 610" stroke="#2563EB" stroke-width="3.5" stroke-linecap="round" marker-end="url(#arrowIndigo)"/>
+  <path d="M639 554C639 584 598 590 598 610" stroke="#059669" stroke-width="3.5" stroke-linecap="round" marker-end="url(#arrowGreen)"/>
+  <path d="M1032 503C1032 560 948 574 948 610" stroke="#E11D48" stroke-width="3.5" stroke-linecap="round" marker-end="url(#arrowGreen)"/>
+  <path d="M1080 350C1054 362 1036 372 1020 385" stroke="#059669" stroke-width="3.5" stroke-linecap="round" marker-end="url(#arrowGreen)"/>
+
+  <path d="M734 660H812" stroke="#059669" stroke-width="3.5" stroke-linecap="round" marker-end="url(#arrowGreen)"/>
+  <path d="M1084 660C1288 640 1320 476 1218 350" stroke="#334155" stroke-width="3" stroke-linecap="round" stroke-dasharray="9 12"/>
+
+  <g transform="translate(520 302)">
+    <rect width="360" height="36" rx="18" fill="#EEF2FF" stroke="#C7D2FE"/>
+    <text x="180" y="24" text-anchor="middle" class="label">100-point harness gates decide whether to revise or continue</text>
+  </g>
+
+  <g transform="translate(1054 736)">
+    <rect width="266" height="36" rx="18" fill="#FFFFFF" stroke="#CBD5E1"/>
+    <text x="133" y="24" text-anchor="middle" class="mono" fill="#334155">workspace/&lt;project_name&gt;/</text>
+  </g>
 </svg>

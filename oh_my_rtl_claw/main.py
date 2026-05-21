@@ -9,6 +9,10 @@ import sys
 from .utils.console import Console, Panel, ProgressConsole
 
 
+DEFAULT_CLI_NAME = "oh-my-rtl-claw"
+AGENT_CLI_NAME = "omrc"
+
+
 def resolve_runtime_root() -> Path:
     env_root = os.getenv("OH_MY_RTL_CLAW_ROOT")
     candidates = []
@@ -27,14 +31,15 @@ def resolve_runtime_root() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
-def build_parser() -> argparse.ArgumentParser:
+def build_parser(prog: str = DEFAULT_CLI_NAME) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="oh-my-rtl-claw",
+        prog=prog,
         description="Oh My RTL Claw - multi-agent RTL design orchestrator",
     )
     subparsers = parser.add_subparsers(dest="command")
 
     subparsers.add_parser("init", help="Initialize language, API access, and simulator settings")
+    subparsers.add_parser("setup", help="Alias for init")
 
     new_parser = subparsers.add_parser("new", help="Start a new design project")
     new_parser.add_argument("--desc", type=str, help="Design description in natural language")
@@ -57,6 +62,29 @@ def build_parser() -> argparse.ArgumentParser:
     clean_scope.add_argument("--project", type=str, help="Remove outputs for one project")
     clean_scope.add_argument("--all", action="store_true", help="Remove all generated project outputs")
     return parser
+
+
+def console_command_name() -> str:
+    invoked = Path(sys.argv[0]).stem.lower()
+    return invoked if invoked in {DEFAULT_CLI_NAME, AGENT_CLI_NAME} else DEFAULT_CLI_NAME
+
+
+def should_start_agent(args: list[str], command_name: str) -> bool:
+    return command_name == AGENT_CLI_NAME and not args
+
+
+def first_run_needs_setup(root: Path) -> bool:
+    return not (root / ".env").exists()
+
+
+def default_new_args() -> argparse.Namespace:
+    return argparse.Namespace(command="new", desc=None, ref=None, board=None, project=None, approve_all=False)
+
+
+def default_omrc_args(root: Path) -> argparse.Namespace:
+    if first_run_needs_setup(root):
+        return argparse.Namespace(command="setup")
+    return default_new_args()
 
 
 async def start_new_project(args: argparse.Namespace) -> None:
@@ -132,12 +160,14 @@ def clean_outputs(args: argparse.Namespace) -> None:
         console.print(Panel(f"Nothing to remove for {target}.", title="Clean"))
 
 
-def main() -> None:
-    parser = build_parser()
-    args = parser.parse_args()
+def main(argv: list[str] | None = None) -> None:
+    command_name = console_command_name()
+    raw_args = list(sys.argv[1:] if argv is None else argv)
+    parser = build_parser(prog=command_name)
     root = resolve_runtime_root()
+    args = default_omrc_args(root) if should_start_agent(raw_args, command_name) else parser.parse_args(raw_args)
 
-    if args.command == "init":
+    if args.command in {"init", "setup"}:
         from .orchestrator import initialize_system
 
         asyncio.run(initialize_system(root))
