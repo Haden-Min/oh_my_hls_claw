@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
+from .sim_parser import simulation_passed
+
 
 class IcarusRunner:
     async def run(self, rtl_files: list[str], tb_file: str, work_dir: str, timeout: int = 30) -> dict[str, object]:
@@ -39,5 +41,5 @@ class IcarusRunner:
             return {"status": "TIMEOUT", "log": f"Simulation timed out after {timeout}s", "pass": False}
 
         sim_log = (sim_stdout + sim_stderr).decode()
-        passed = "PASS" in sim_log and "FAIL" not in sim_log
+        passed = simulation_passed(sim_log)
         return {"status": "PASS" if passed else "FAIL", "log": sim_log, "pass": passed}

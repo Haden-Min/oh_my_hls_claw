@@ -10,12 +10,12 @@ from unittest import mock
 if "yaml" not in sys.modules:
     sys.modules["yaml"] = types.SimpleNamespace(safe_load=lambda *_args, **_kwargs: {}, safe_dump=lambda *_args, **_kwargs: None)
 
-from src.agents.base import AgentMessage
-from src.llm.openai_client import OpenAIClient
-from src.utils.checkpoint import CheckpointManager
-from src.utils.file_manager import FileManager
-from src.orchestrator import Orchestrator
-from src import main as main_module
+from oh_my_rtl_claw.agents.base import AgentMessage
+from oh_my_rtl_claw.llm.openai_client import OpenAIClient
+from oh_my_rtl_claw.utils.checkpoint import CheckpointManager
+from oh_my_rtl_claw.utils.file_manager import FileManager
+from oh_my_rtl_claw.orchestrator import Orchestrator
+from oh_my_rtl_claw import main as main_module
 
 
 class PathTests(unittest.TestCase):
@@ -30,6 +30,14 @@ class PathTests(unittest.TestCase):
         file_manager = FileManager(self.temp_root)
         project_root = file_manager.project_root("alu8_basic")
         self.assertEqual(project_root, self.temp_root / "workspace" / "alu8_basic")
+
+    def test_project_root_sanitizes_path_like_project_names(self):
+        file_manager = FileManager(self.temp_root)
+        project_root = file_manager.project_root("../outside")
+
+        self.assertEqual(project_root, self.temp_root / "workspace" / "outside")
+        project_root.resolve().relative_to((self.temp_root / "workspace").resolve())
+        self.assertNotEqual(project_root.resolve(), (self.temp_root / "outside").resolve())
 
     def test_ensure_project_creates_all_artifacts_under_workspace_only(self):
         file_manager = FileManager(self.temp_root)
@@ -64,6 +72,24 @@ class PathTests(unittest.TestCase):
         self.assertFalse(workspace_project.exists())
         self.assertFalse(legacy_project.exists())
 
+    def test_clean_path_like_project_name_stays_under_workspace(self):
+        file_manager = FileManager(self.temp_root)
+        workspace_project = file_manager.ensure_project("../outside")
+        file_manager.write_json(workspace_project / "project_state.json", {"project_name": "outside"})
+        outside_root = self.temp_root / "outside"
+        outside_root.mkdir(parents=True, exist_ok=True)
+        (outside_root / "project_state.json").write_text('{"project_name":"outside"}', encoding="utf-8")
+
+        orchestrator = Orchestrator.__new__(Orchestrator)
+        orchestrator.root = self.temp_root
+        orchestrator.file_manager = file_manager
+
+        removed = orchestrator.clean(project_name="../outside")
+
+        self.assertIn(str(workspace_project), removed)
+        self.assertFalse(workspace_project.exists())
+        self.assertTrue(outside_root.exists())
+
     def test_clean_all_does_not_remove_protected_source_directories(self):
         file_manager = FileManager(self.temp_root)
         workspace_project = file_manager.ensure_project("alu8_basic")
@@ -72,6 +98,9 @@ class PathTests(unittest.TestCase):
         protected_src = self.temp_root / "src"
         (protected_src / "sim").mkdir(parents=True, exist_ok=True)
         (protected_src / "main.py").write_text("print('safe')\n", encoding="utf-8")
+        protected_package = self.temp_root / "oh_my_rtl_claw"
+        (protected_package / "sim").mkdir(parents=True, exist_ok=True)
+        (protected_package / "main.py").write_text("print('safe')\n", encoding="utf-8")
 
         orchestrator = Orchestrator.__new__(Orchestrator)
         orchestrator.root = self.temp_root
@@ -84,6 +113,9 @@ class PathTests(unittest.TestCase):
         self.assertTrue(protected_src.exists())
         self.assertTrue((protected_src / "main.py").exists())
         self.assertNotIn(str(protected_src), removed)
+        self.assertTrue(protected_package.exists())
+        self.assertTrue((protected_package / "main.py").exists())
+        self.assertNotIn(str(protected_package), removed)
 
     def test_initialize_project_state_normalizes_description_and_scalar_lists(self):
         orchestrator = Orchestrator.__new__(Orchestrator)
@@ -419,6 +451,10 @@ class PathTests(unittest.TestCase):
         self.assertEqual(result, "ok")
         self.assertNotIn("temperature", captured["json"])
 
+    def test_openai_client_honors_custom_oauth_proxy_url(self):
+        client = OpenAIClient(base_url="http://127.0.0.1:9999/v1", model="gpt-5.4", use_oauth_proxy=True)
+        self.assertEqual(client.base_url, "http://127.0.0.1:9999/v1/chat/completions")
+
     def test_openai_client_keeps_temperature_for_non_reasoning_models(self):
         captured = {}
 
@@ -470,10 +506,10 @@ class PathTests(unittest.TestCase):
                 return None
 
         args = types.SimpleNamespace(desc="demo", ref=None, project="cpu", board=None, approve_all=False)
-        with mock.patch.object(main_module, "ProgressConsole", FakeProgressConsole), mock.patch("src.orchestrator.Orchestrator", FakeOrchestrator):
+        with mock.patch.object(main_module, "ProgressConsole", FakeProgressConsole), mock.patch("oh_my_rtl_claw.orchestrator.Orchestrator", FakeOrchestrator):
             asyncio.run(main_module.start_new_project(args))
 
-        rendered = str(printed[0])
+        rendered = f"{getattr(printed[0], 'title', '')} {getattr(printed[0], 'renderable', printed[0])}"
         self.assertIn("Not Done", rendered)
         self.assertIn("Blocked at step 2 (register_file)", rendered)
 

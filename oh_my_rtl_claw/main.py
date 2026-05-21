@@ -2,15 +2,35 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 from pathlib import Path
+import sys
 
 from .utils.console import Console, Panel, ProgressConsole
 
 
+def resolve_runtime_root() -> Path:
+    env_root = os.getenv("OH_MY_RTL_CLAW_ROOT")
+    candidates = []
+    if env_root:
+        candidates.append(Path(env_root))
+    candidates.extend(
+        [
+            Path.cwd(),
+            Path(__file__).resolve().parent.parent,
+            Path(sys.prefix),
+        ]
+    )
+    for candidate in candidates:
+        if (candidate / "config" / "settings.yaml").exists():
+            return candidate
+    return Path(__file__).resolve().parent.parent
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="oh-my-hls-claw",
-        description="Oh_My_HLS_Claw - AI-powered Digital System Design Agent",
+        prog="oh-my-rtl-claw",
+        description="Oh My RTL Claw - multi-agent RTL design orchestrator",
     )
     subparsers = parser.add_subparsers(dest="command")
 
@@ -42,7 +62,7 @@ def build_parser() -> argparse.ArgumentParser:
 async def start_new_project(args: argparse.Namespace) -> None:
     from .orchestrator import Orchestrator
 
-    root = Path(__file__).resolve().parent.parent
+    root = resolve_runtime_root()
     progress_console = ProgressConsole(Console())
     orchestrator = Orchestrator(root)
     orchestrator.context.checkpoint_manager.auto_approve = bool(args.approve_all)
@@ -74,7 +94,7 @@ async def start_new_project(args: argparse.Namespace) -> None:
 async def resume_project(args: argparse.Namespace) -> None:
     from .orchestrator import Orchestrator
 
-    root = Path(__file__).resolve().parent.parent
+    root = resolve_runtime_root()
     orchestrator = Orchestrator(root)
     state = orchestrator.resume_project(args.project)
     Console().print(Panel(str(state), title=f"Resume: {args.project}"))
@@ -83,7 +103,7 @@ async def resume_project(args: argparse.Namespace) -> None:
 def show_status(args: argparse.Namespace) -> None:
     from .orchestrator import Orchestrator
 
-    root = Path(__file__).resolve().parent.parent
+    root = resolve_runtime_root()
     orchestrator = Orchestrator(root)
     state = orchestrator.status(args.project)
     Console().print(Panel(str(state), title=f"Status: {args.project}"))
@@ -92,7 +112,7 @@ def show_status(args: argparse.Namespace) -> None:
 def show_cost(args: argparse.Namespace) -> None:
     from .orchestrator import Orchestrator
 
-    root = Path(__file__).resolve().parent.parent
+    root = resolve_runtime_root()
     orchestrator = Orchestrator(root)
     cost = orchestrator.cost(args.project)
     Console().print(Panel(str(cost), title=f"Cost: {args.project}"))
@@ -101,7 +121,7 @@ def show_cost(args: argparse.Namespace) -> None:
 def clean_outputs(args: argparse.Namespace) -> None:
     from .orchestrator import Orchestrator
 
-    root = Path(__file__).resolve().parent.parent
+    root = resolve_runtime_root()
     console = ProgressConsole(Console())
     orchestrator = Orchestrator(root)
     removed = orchestrator.clean(project_name=args.project, all_projects=args.all)
@@ -115,7 +135,7 @@ def clean_outputs(args: argparse.Namespace) -> None:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
-    root = Path(__file__).resolve().parent.parent
+    root = resolve_runtime_root()
 
     if args.command == "init":
         from .orchestrator import initialize_system

@@ -28,9 +28,10 @@ class OpenAIClient(BaseLLMClient):
         self.max_retries = max_retries
         self.base_wait = base_wait
         self.max_wait = max_wait
-        self.base_url = (
-            "http://127.0.0.1:10531/v1/chat/completions" if use_oauth_proxy else base_url
-        )
+        endpoint = base_url
+        if use_oauth_proxy and endpoint == "https://api.openai.com/v1/chat/completions":
+            endpoint = "http://127.0.0.1:10531/v1/chat/completions"
+        self.base_url = self._normalize_chat_endpoint(endpoint)
         self.api_key = "not-needed" if use_oauth_proxy else api_key
         self.client = httpx.AsyncClient(timeout=180.0)
 
@@ -106,3 +107,12 @@ class OpenAIClient(BaseLLMClient):
 
     def _supports_temperature(self) -> bool:
         return not self.model.startswith("gpt-5")
+
+    @staticmethod
+    def _normalize_chat_endpoint(base_url: str) -> str:
+        endpoint = base_url.rstrip("/")
+        if endpoint.endswith("/chat/completions"):
+            return endpoint
+        if endpoint.endswith("/v1"):
+            return f"{endpoint}/chat/completions"
+        return endpoint

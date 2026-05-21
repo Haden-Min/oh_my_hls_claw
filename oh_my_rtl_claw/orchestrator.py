@@ -45,6 +45,7 @@ class Orchestrator:
         "docs",
         "examples",
         "locale",
+        "oh_my_rtl_claw",
         "src",
         "tests",
         "workspace",
@@ -85,13 +86,30 @@ class Orchestrator:
         def load_prompt(name: str) -> str:
             return self.file_manager.read_text(prompts_dir / f"{name}.md")
 
+        def agent_kwargs(name: str) -> dict[str, Any]:
+            config = self.router.get_agent_config(name)
+            return {
+                "max_tokens": int(config.get("max_tokens", 4096)),
+                "temperature": float(config.get("temperature", 0.3)),
+            }
+
         return {
-            "planner": PlannerAgent("planner", self.router.build_client("planner"), load_prompt("planner")),
-            "manager": ManagerAgent("manager", self.router.build_client("manager"), load_prompt("manager")),
-            "rtl_designer": RTLDesignerAgent("rtl_designer", self.router.build_client("rtl_designer"), load_prompt("rtl_designer")),
-            "verifier": VerifierAgent("verifier", self.router.build_client("verifier"), load_prompt("verifier")),
-            "guide_writer": GuideWriterAgent("guide_writer", self.router.build_client("guide_writer"), load_prompt("guide_writer")),
-            "onboarder": OnboarderAgent("onboarder", self.router.build_client("onboarder"), load_prompt("onboarder")),
+            "planner": PlannerAgent("planner", self.router.build_client("planner"), load_prompt("planner"), **agent_kwargs("planner")),
+            "manager": ManagerAgent("manager", self.router.build_client("manager"), load_prompt("manager"), **agent_kwargs("manager")),
+            "rtl_designer": RTLDesignerAgent(
+                "rtl_designer",
+                self.router.build_client("rtl_designer"),
+                load_prompt("rtl_designer"),
+                **agent_kwargs("rtl_designer"),
+            ),
+            "verifier": VerifierAgent("verifier", self.router.build_client("verifier"), load_prompt("verifier"), **agent_kwargs("verifier")),
+            "guide_writer": GuideWriterAgent(
+                "guide_writer",
+                self.router.build_client("guide_writer"),
+                load_prompt("guide_writer"),
+                **agent_kwargs("guide_writer"),
+            ),
+            "onboarder": OnboarderAgent("onboarder", self.router.build_client("onboarder"), load_prompt("onboarder"), **agent_kwargs("onboarder")),
         }
 
     async def run_project(self, user_input: str, project_name: str | None = None, board: str | None = None) -> dict[str, Any]:
@@ -121,7 +139,8 @@ class Orchestrator:
             final_spec = initial_spec.artifacts.get("spec", self._safe_json(initial_spec.content))
         final_spec = manager.normalize_execution_plan(final_spec)
 
-        resolved_name = project_name or final_spec.get("architecture_name") or self._slugify(user_input) or "unnamed_project"
+        raw_project_name = project_name or final_spec.get("architecture_name") or self._slugify(user_input) or "unnamed_project"
+        resolved_name = self.file_manager.safe_project_name(raw_project_name)
         project_root = self.file_manager.ensure_project(resolved_name)
         manager.project_root = project_root
 
@@ -544,7 +563,7 @@ class Orchestrator:
     def clean(self, project_name: str | None = None, all_projects: bool = False) -> list[str]:
         removed: list[str] = []
         for target in self._clean_targets(project_name=project_name, all_projects=all_projects):
-            if target.exists():
+            if target.exists() and self._is_safe_clean_target(target):
                 shutil.rmtree(target)
                 removed.append(str(target))
         return removed
@@ -580,9 +599,11 @@ class Orchestrator:
 
         if project_name:
             targets.append(self.file_manager.project_root(project_name))
-            legacy_root = self.root / project_name
-            if self._looks_like_project_root(legacy_root):
-                targets.append(legacy_root)
+            safe_project_name = self.file_manager.safe_project_name(project_name)
+            if str(project_name).strip() == safe_project_name:
+                legacy_root = self.root / safe_project_name
+                if self._looks_like_project_root(legacy_root):
+                    targets.append(legacy_root)
         return self._unique_paths(targets)
 
     def _legacy_project_roots(self) -> list[Path]:
@@ -621,6 +642,26 @@ class Orchestrator:
             seen.add(resolved)
             unique.append(path)
         return unique
+
+    def _is_safe_clean_target(self, target: Path) -> bool:
+        resolved_target = target.resolve()
+        resolved_root = self.root.resolve()
+        workspace_root = (self.root / "workspace").resolve()
+        try:
+            relative_to_workspace = resolved_target.relative_to(workspace_root)
+            return bool(relative_to_workspace.parts)
+        except ValueError:
+            pass
+
+        try:
+            relative_to_root = resolved_target.relative_to(resolved_root)
+        except ValueError:
+            return False
+        if not relative_to_root.parts:
+            return False
+        if relative_to_root.parts[0] in self.PROTECTED_ROOT_DIRS:
+            return False
+        return self._looks_like_project_root(resolved_target)
 
     @staticmethod
     def _coerce_list(value: Any) -> list[Any]:
@@ -772,7 +813,7 @@ async def initialize_system(root: str | Path, console: Console | None = None) ->
     console = ProgressConsole(console or Console())
     from .utils.oauth_health import check_openai_oauth_proxy
 
-    console.print("Oh_My_HLS_Claw - Initial Setup")
+    console.print("Oh My RTL Claw - Initial Setup")
     language_choice = console.input("Select language [en/ko/ja/zh] (default: en): ").strip().lower() or settings["system"].get("language", "en")
 
     oauth_url = settings.get("openai", {}).get("oauth_proxy_url", "http://127.0.0.1:10531/v1")
@@ -842,5 +883,5 @@ async def initialize_system(root: str | Path, console: Console | None = None) ->
     ]
     file_manager.write_text(env_path, "\n".join(env_lines) + "\n")
     console.print("Configuration saved.")
-    console.print("Next step: run `python -m src.main new --desc \"8-bit RISC CPU\"`")
+    console.print("Next step: run `python -m oh_my_rtl_claw.main new --desc \"8-bit RISC CPU\"`")
     return settings

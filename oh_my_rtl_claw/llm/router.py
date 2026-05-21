@@ -35,7 +35,7 @@ class ModelRouter:
             return OpenAIClient(
                 api_key=os.getenv("OPENAI_API_KEY", ""),
                 model=config.get("model", "gpt-5.4"),
-                base_url=openai_settings.get("oauth_proxy_url", "https://api.openai.com/v1/chat/completions").replace("/v1", "/v1/chat/completions") if openai_settings.get("use_oauth_proxy") else "https://api.openai.com/v1/chat/completions",
+                base_url=openai_settings.get("oauth_proxy_url", "https://api.openai.com/v1/chat/completions") if openai_settings.get("use_oauth_proxy") else "https://api.openai.com/v1/chat/completions",
                 use_oauth_proxy=bool(openai_settings.get("use_oauth_proxy", False)),
                 max_retries=int(rate_limit.get("max_retries", 10)),
                 base_wait=float(rate_limit.get("base_wait_seconds", 5)),

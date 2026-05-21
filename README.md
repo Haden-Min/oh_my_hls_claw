@@ -1,13 +1,13 @@
 <p align="center">
-  <img src="docs/assets/logo.svg" alt="Oh_My_HLS_Claw logo" width="100%">
+  <img src="docs/assets/logo.svg" alt="Oh My RTL Claw logo" width="100%">
 </p>
 
 <p align="center">
   <strong>Natural language in, Verilog RTL out.</strong><br/>
-  A multi-agent hardware design pipeline for planning, coding, verification, documentation, and FPGA onboarding.
+  A multi-agent RTL design orchestrator for planning, coding, verification, documentation, and FPGA onboarding.
 </p>
 
-Oh_My_HLS_Claw is a Python-based orchestration system that turns a design request or reference software into:
+Oh My RTL Claw is a Python-based orchestration system that turns a design request or reference software into:
 
 - architecture specs
 - module-by-module Verilog RTL
@@ -22,13 +22,15 @@ Recent upgrades in the current runtime:
 - stricter 100-point harness loops with up to 15 refinement rounds
 - stronger manager-side step normalization so one module is not redundantly assigned three times
 - generated outputs consistently landing under `workspace/<project_name>/`
+- project names are normalized before any workspace write or clean operation
+- simulator results use explicit PASS/FAIL line parsing instead of broad substring matches
 - live CLI progress with elapsed time, cleaner spacing, and easier-to-scan status output
 - a built-in `clean` command for removing generated project artifacts safely
 
 ## Why It Exists
 
-Typical HLS tools stop at C/C++ to RTL conversion.
-Oh_My_HLS_Claw is aiming at a wider workflow:
+Traditional RTL work often scatters intent, module planning, testbenches, simulation logs, and project notes across separate tools.
+Oh My RTL Claw keeps that workflow under one agentic orchestration loop:
 
 ```text
 design intent -> architecture spec -> module plan -> RTL -> testbench -> simulation
@@ -54,7 +56,7 @@ Those influences show up most clearly in the harness design, the stricter manage
 ## System Architecture
 
 <p align="center">
-  <img src="docs/assets/system-architecture.svg" alt="Oh_My_HLS_Claw system architecture" width="100%">
+  <img src="docs/assets/system-architecture.svg" alt="Oh My RTL Claw system architecture" width="100%">
 </p>
 
 ## What You Need Installed
@@ -134,20 +136,20 @@ Vivado CLI:
 ### 4. Run interactive setup
 
 ```bash
-python -m src.main init
+python -m oh_my_rtl_claw.main init
 ```
 
 ### 5. Start your first project
 
 ```bash
-python -m src.main new --desc "8-bit ALU supporting ADD, SUB, AND, OR, XOR"
+python -m oh_my_rtl_claw.main new --desc "8-bit ALU supporting ADD, SUB, AND, OR, XOR"
 ```
 
 ### 6. Clean old generated outputs when you want a fresh run
 
 ```bash
-python -m src.main clean --project alu8_basic
-python -m src.main clean --all
+python -m oh_my_rtl_claw.main clean --project alu8_basic
+python -m oh_my_rtl_claw.main clean --all
 ```
 
 ## Example `init` Flow
@@ -155,7 +157,7 @@ python -m src.main clean --all
 This is the kind of interactive setup flow you should expect:
 
 ```text
-Oh_My_HLS_Claw - Initial Setup
+Oh My RTL Claw - Initial Setup
 
 Select language [en/ko/ja/zh] (default: en): en
 
@@ -166,7 +168,7 @@ Press Enter for recommended OAuth setup, or type [a] for advanced provider setup
 Simulator [icarus/vivado] (default: icarus): icarus
 
 Configuration saved.
-Next step: run `python -m src.main new --desc "8-bit RISC CPU"`
+Next step: run `python -m oh_my_rtl_claw.main new --desc "8-bit RISC CPU"`
 ```
 
 If the OAuth proxy is not running, the CLI falls back to API-key or advanced-provider setup.
@@ -174,14 +176,14 @@ If the OAuth proxy is not running, the CLI falls back to API-key or advanced-pro
 ## Main Commands
 
 ```bash
-python -m src.main init
-python -m src.main new --desc "8-bit RISC CPU, single cycle, 8 registers"
-python -m src.main new --ref examples/alu.py
-python -m src.main resume --project my_project
-python -m src.main status --project my_project
-python -m src.main cost --project my_project
-python -m src.main clean --project my_project
-python -m src.main clean --all
+python -m oh_my_rtl_claw.main init
+python -m oh_my_rtl_claw.main new --desc "8-bit RISC CPU, single cycle, 8 registers"
+python -m oh_my_rtl_claw.main new --ref examples/alu.py
+python -m oh_my_rtl_claw.main resume --project my_project
+python -m oh_my_rtl_claw.main status --project my_project
+python -m oh_my_rtl_claw.main cost --project my_project
+python -m oh_my_rtl_claw.main clean --project my_project
+python -m oh_my_rtl_claw.main clean --all
 ```
 
 Full CLI command reference:
@@ -192,9 +194,9 @@ Full CLI command reference:
 The repo is organized around a few core ideas: config, agent logic, LLM backends, simulator wrappers, and generated workspace artifacts.
 
 ```text
-oh_my_hls_claw/
-|- CODEX.md
+oh_my_rtl_claw/
 |- README.md
+|- MANIFEST.in
 |- requirements.txt
 |- setup.py
 |- .env.example
@@ -215,7 +217,7 @@ oh_my_hls_claw/
 |  `- ja.yaml
 |- examples/
 |  `- alu.py
-|- src/
+|- oh_my_rtl_claw/
 |  |- main.py
 |  |- orchestrator.py
 |  |- harness.py
@@ -226,6 +228,7 @@ oh_my_hls_claw/
 |- tests/
 |  |- test_agents.py
 |  |- test_harness.py
+|  |- test_paths.py
 |  `- test_sim.py
 `- workspace/
    `- <project_name>/
@@ -294,7 +297,7 @@ The system is split into specialized agents instead of one monolithic generator.
 
 Implementation code lives under:
 
-- `src/agents/`
+- `oh_my_rtl_claw/agents/`
 
 Prompt templates live under:
 
@@ -304,15 +307,15 @@ Prompt templates live under:
 
 If you want to navigate the codebase quickly, start here:
 
-- `src/main.py`: CLI entrypoint
-- `src/orchestrator.py`: end-to-end project flow
-- `src/harness.py`: score-based agent-to-agent refinement loop
-- `src/llm/router.py`: provider/model routing
-- `src/sim/icarus_runner.py`: Icarus simulation backend
-- `src/sim/vivado_runner.py`: Vivado simulation backend
-- `src/utils/checkpoint.py`: approval flow
-- `src/utils/file_manager.py`: file persistence and workspace layout
-- `src/utils/console.py`: progress UI, spinner, timing, and output formatting
+- `oh_my_rtl_claw/main.py`: CLI entrypoint
+- `oh_my_rtl_claw/orchestrator.py`: end-to-end project flow
+- `oh_my_rtl_claw/harness.py`: score-based agent-to-agent refinement loop
+- `oh_my_rtl_claw/llm/router.py`: provider/model routing
+- `oh_my_rtl_claw/sim/icarus_runner.py`: Icarus simulation backend
+- `oh_my_rtl_claw/sim/vivado_runner.py`: Vivado simulation backend
+- `oh_my_rtl_claw/utils/checkpoint.py`: approval flow
+- `oh_my_rtl_claw/utils/file_manager.py`: file persistence and workspace layout
+- `oh_my_rtl_claw/utils/console.py`: progress UI, spinner, timing, and output formatting
 
 ## Verification Status
 
@@ -321,7 +324,7 @@ Current local checks used during development:
 ```bash
 python -m unittest discover -s tests -v
 python -m compileall src tests
-python -m src.main --help
+python -m oh_my_rtl_claw.main --help
 ```
 
 ## Platform Notes

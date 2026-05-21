@@ -4,6 +4,8 @@ import asyncio
 import os
 from pathlib import Path
 
+from .sim_parser import simulation_passed
+
 
 class VivadoRunner:
     def __init__(self, vivado_path: str | None = None) -> None:
@@ -78,5 +80,5 @@ class VivadoRunner:
             return {"status": "TIMEOUT", "log": f"Simulation timed out after {timeout}s", "pass": False}
 
         sim_log = (sim_stdout + sim_stderr).decode()
-        passed = "PASS" in sim_log and "FAIL" not in sim_log
+        passed = simulation_passed(sim_log)
         return {"status": "PASS" if passed else "FAIL", "log": sim_log, "pass": passed}

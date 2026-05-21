@@ -9,8 +9,16 @@ from .base import AgentMessage, BaseAgent
 
 
 class ManagerAgent(BaseAgent):
-    def __init__(self, name: str, llm_client: Any, system_prompt: str, project_root: str | Path | None = None) -> None:
-        super().__init__(name, llm_client, system_prompt)
+    def __init__(
+        self,
+        name: str,
+        llm_client: Any,
+        system_prompt: str,
+        project_root: str | Path | None = None,
+        max_tokens: int = 4096,
+        temperature: float = 0.3,
+    ) -> None:
+        super().__init__(name, llm_client, system_prompt, max_tokens=max_tokens, temperature=temperature)
         self.project_root = Path(project_root) if project_root else None
 
     def _format_input(self, message: AgentMessage) -> str:

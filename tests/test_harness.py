@@ -1,8 +1,8 @@
 import asyncio
 import unittest
 
-from src.agents.base import AgentMessage, BaseAgent
-from src.harness import HarnessLoop
+from oh_my_rtl_claw.agents.base import AgentMessage, BaseAgent
+from oh_my_rtl_claw.harness import HarnessLoop
 
 
 class DummyLLM:

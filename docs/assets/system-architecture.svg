@@ -1,6 +1,6 @@
 <svg width="1400" height="760" viewBox="0 0 1400 760" fill="none" xmlns="http://www.w3.org/2000/svg">
   <rect width="1400" height="760" rx="28" fill="#0B1220"/>
-  <text x="72" y="74" fill="#F8FAFC" font-family="Segoe UI, Arial, sans-serif" font-size="38" font-weight="700">Oh_My_HLS_Claw System Architecture</text>
+  <text x="72" y="74" fill="#F8FAFC" font-family="Segoe UI, Arial, sans-serif" font-size="38" font-weight="700">Oh My RTL Claw System Architecture</text>
   <text x="72" y="112" fill="#94A3B8" font-family="Segoe UI, Arial, sans-serif" font-size="20">Intent flows through planning, score-based review loops, RTL generation, simulation, docs, and onboarding.</text>
 
   <rect x="70" y="170" width="220" height="96" rx="20" fill="#132238" stroke="#67E8F9" stroke-width="2"/>

@@ -1,0 +1,7 @@
+include README.md
+include LICENSE
+include .env.example
+recursive-include config *.yaml *.md
+recursive-include locale *.yaml
+recursive-include docs *.md *.svg
+recursive-include examples *.py

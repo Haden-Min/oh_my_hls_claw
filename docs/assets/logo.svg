@@ -9,7 +9,7 @@
     <path d="M140 154L190 205" stroke="#FB7185" stroke-width="18" stroke-linecap="round"/>
   </g>
 
-  <text x="340" y="132" fill="#F8FAFC" font-family="Segoe UI, Arial, sans-serif" font-size="54" font-weight="700">Oh_My_HLS_Claw</text>
+  <text x="340" y="132" fill="#F8FAFC" font-family="Segoe UI, Arial, sans-serif" font-size="54" font-weight="700">Oh My RTL Claw</text>
   <text x="340" y="182" fill="#C7D2FE" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="600">Natural language in. Verilog RTL out.</text>
   <text x="340" y="220" fill="#CBD5E1" font-family="Segoe UI, Arial, sans-serif" font-size="22">Multi-agent planning, RTL generation, verification, docs, and FPGA onboarding.</text>
 

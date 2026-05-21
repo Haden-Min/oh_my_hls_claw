@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import re
 from typing import Any
 
 import yaml
 
 
 class FileManager:
+    _PROJECT_NAME_PATTERN = re.compile(r"[^a-zA-Z0-9._-]+")
+
     def __init__(self, root: str | Path) -> None:
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
@@ -19,7 +22,17 @@ class FileManager:
         return project_root
 
     def project_root(self, project_name: str) -> Path:
-        return self.root / "workspace" / project_name
+        workspace_root = self.root / "workspace"
+        safe_name = self.safe_project_name(project_name)
+        project_root = workspace_root / safe_name
+        self._assert_inside(project_root, workspace_root)
+        return project_root
+
+    @classmethod
+    def safe_project_name(cls, project_name: str | Path) -> str:
+        raw_name = str(project_name).strip()
+        normalized = cls._PROJECT_NAME_PATTERN.sub("_", raw_name).strip("._-")
+        return normalized[:80] or "unnamed_project"
 
     def read_text(self, path: str | Path, default: str = "") -> str:
         target = Path(path)
@@ -60,3 +73,12 @@ class FileManager:
         with target.open("w", encoding="utf-8") as handle:
             json.dump(data, handle, indent=2, ensure_ascii=False)
         return target
+
+    @staticmethod
+    def _assert_inside(path: Path, parent: Path) -> None:
+        resolved_path = path.resolve()
+        resolved_parent = parent.resolve()
+        try:
+            resolved_path.relative_to(resolved_parent)
+        except ValueError as exc:
+            raise ValueError(f"Unsafe project path outside workspace: {path}") from exc

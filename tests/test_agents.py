@@ -1,20 +1,22 @@
 import asyncio
 import unittest
 
-from src.agents.base import AgentMessage
-from src.agents.guide_writer import GuideWriterAgent
-from src.agents.onboarder import OnboarderAgent
-from src.agents.manager import ManagerAgent
-from src.agents.planner import PlannerAgent
-from src.agents.rtl_designer import RTLDesignerAgent
-from src.agents.verifier import VerifierAgent
+from oh_my_rtl_claw.agents.base import AgentMessage
+from oh_my_rtl_claw.agents.guide_writer import GuideWriterAgent
+from oh_my_rtl_claw.agents.onboarder import OnboarderAgent
+from oh_my_rtl_claw.agents.manager import ManagerAgent
+from oh_my_rtl_claw.agents.planner import PlannerAgent
+from oh_my_rtl_claw.agents.rtl_designer import RTLDesignerAgent
+from oh_my_rtl_claw.agents.verifier import VerifierAgent
 
 
 class DummyLLM:
     def __init__(self, response):
         self.response = response
+        self.calls = []
 
     async def chat(self, system, messages, max_tokens=4096, temperature=0.3):
+        self.calls.append({"system": system, "messages": messages, "max_tokens": max_tokens, "temperature": temperature})
         return self.response
 
 
@@ -45,6 +47,15 @@ class AgentTests(unittest.TestCase):
         verify_result = asyncio.run(verifier.send(AgentMessage(role="manager", content="x")))
         self.assertIn("if (a < b) y <=", rtl_result.artifacts["verilog"])
         self.assertIn("if (a < b) begin y <=", verify_result.artifacts["testbench"])
+
+    def test_agents_apply_configured_generation_limits(self):
+        llm = DummyLLM("<SPEC>{}</SPEC>")
+        agent = PlannerAgent("planner", llm, "", max_tokens=1234, temperature=0.1)
+
+        asyncio.run(agent.send(AgentMessage(role="user", content="x")))
+
+        self.assertEqual(llm.calls[0]["max_tokens"], 1234)
+        self.assertEqual(llm.calls[0]["temperature"], 0.1)
 
     def test_manager_normalizes_duplicate_module_steps(self):
         spec = {

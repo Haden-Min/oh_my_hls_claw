@@ -17,15 +17,29 @@ class AgentMessage:
 
 
 class BaseAgent(ABC):
-    def __init__(self, name: str, llm_client: Any, system_prompt: str) -> None:
+    def __init__(
+        self,
+        name: str,
+        llm_client: Any,
+        system_prompt: str,
+        max_tokens: int = 4096,
+        temperature: float = 0.3,
+    ) -> None:
         self.name = name
         self.llm = llm_client
         self.system_prompt = system_prompt
+        self.max_tokens = max_tokens
+        self.temperature = temperature
         self.conversation_history: list[dict[str, str]] = []
 
     async def send(self, message: AgentMessage) -> AgentMessage:
         self.conversation_history.append({"role": "user", "content": self._format_input(message)})
-        response = await self.llm.chat(system=self.system_prompt, messages=self.conversation_history)
+        response = await self.llm.chat(
+            system=self.system_prompt,
+            messages=self.conversation_history,
+            max_tokens=self.max_tokens,
+            temperature=self.temperature,
+        )
         self.conversation_history.append({"role": "assistant", "content": response})
         return self._parse_output(response)
 

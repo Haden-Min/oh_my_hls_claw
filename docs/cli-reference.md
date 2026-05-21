@@ -1,11 +1,13 @@
 # CLI Command Reference
 
-This file collects the commands currently exposed by `python -m src.main`.
+This file collects the commands currently exposed by `python -m oh_my_rtl_claw.main`.
+After package installation, the same parser is also exposed as `oh-my-rtl-claw`.
 
 ## Overview
 
 ```bash
-python -m src.main --help
+python -m oh_my_rtl_claw.main --help
+oh-my-rtl-claw --help
 ```
 
 Available subcommands:
@@ -22,7 +24,7 @@ Available subcommands:
 Interactive setup for language, model access, and simulator configuration.
 
 ```bash
-python -m src.main init
+python -m oh_my_rtl_claw.main init
 ```
 
 What it does:
@@ -37,10 +39,10 @@ What it does:
 Starts a new generated hardware project from natural language or a reference file.
 
 ```bash
-python -m src.main new --desc "8-bit ALU supporting ADD, SUB, AND, OR, XOR"
-python -m src.main new --ref examples/alu.py
-python -m src.main new --project custom_name --desc "single-cycle CPU"
-python -m src.main new --approve-all --desc "8-bit register file"
+python -m oh_my_rtl_claw.main new --desc "8-bit ALU supporting ADD, SUB, AND, OR, XOR"
+python -m oh_my_rtl_claw.main new --ref examples/alu.py
+python -m oh_my_rtl_claw.main new --project custom_name --desc "single-cycle CPU"
+python -m oh_my_rtl_claw.main new --approve-all --desc "8-bit register file"
 ```
 
 Options:
@@ -66,7 +68,7 @@ Notes:
 Shows the saved state for an existing project.
 
 ```bash
-python -m src.main resume --project my_project
+python -m oh_my_rtl_claw.main resume --project my_project
 ```
 
 Required options:
@@ -78,7 +80,7 @@ Required options:
 Prints the current saved project status.
 
 ```bash
-python -m src.main status --project my_project
+python -m oh_my_rtl_claw.main status --project my_project
 ```
 
 Required options:
@@ -90,7 +92,7 @@ Required options:
 Prints the saved cost breakdown for a project run.
 
 ```bash
-python -m src.main cost --project my_project
+python -m oh_my_rtl_claw.main cost --project my_project
 ```
 
 Required options:
@@ -102,8 +104,8 @@ Required options:
 Removes generated project outputs without touching source files.
 
 ```bash
-python -m src.main clean --project my_project
-python -m src.main clean --all
+python -m oh_my_rtl_claw.main clean --project my_project
+python -m oh_my_rtl_claw.main clean --all
 ```
 
 Mutually exclusive options:
@@ -116,17 +118,17 @@ Mutually exclusive options:
 Safety notes:
 
 - this command is intended for generated artifacts only
-- protected source directories such as `src/`, `config/`, `tests/`, and `docs/` are not treated as removable project outputs
+- protected source directories such as `oh_my_rtl_claw/`, `config/`, `tests/`, and `docs/` are not treated as removable project outputs
 
 ## Quick Help Checks
 
 You can inspect the parser directly at any time:
 
 ```bash
-python -m src.main --help
-python -m src.main new --help
-python -m src.main clean --help
-python -m src.main resume --help
-python -m src.main status --help
-python -m src.main cost --help
+python -m oh_my_rtl_claw.main --help
+python -m oh_my_rtl_claw.main new --help
+python -m oh_my_rtl_claw.main clean --help
+python -m oh_my_rtl_claw.main resume --help
+python -m oh_my_rtl_claw.main status --help
+python -m oh_my_rtl_claw.main cost --help
 ```

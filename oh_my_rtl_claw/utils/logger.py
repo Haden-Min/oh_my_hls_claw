@@ -6,7 +6,7 @@ from typing import Optional
 
 
 def configure_logger(level: str = "INFO", log_dir: Optional[str] = None) -> logging.Logger:
-    logger = logging.getLogger("oh_my_hls_claw")
+    logger = logging.getLogger("oh_my_rtl_claw")
     if logger.handlers:
         return logger
 
@@ -28,4 +28,4 @@ def configure_logger(level: str = "INFO", log_dir: Optional[str] = None) -> logg
 
 
 def get_logger() -> logging.Logger:
-    return logging.getLogger("oh_my_hls_claw")
+    return logging.getLogger("oh_my_rtl_claw")
